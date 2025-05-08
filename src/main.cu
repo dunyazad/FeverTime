@@ -11,12 +11,23 @@ namespace Eigen {
 #define alogt(tag, ...) printf("\033[38;5;1m\033[48;5;15m [%d] (^(OO)^) /V/\033[0m\t" tag, __VA_ARGS__)
 
 #include <vtkSmartPointer.h>
-#include <vtkSphereSource.h>
+#include <vtkPolyData.h>
 #include <vtkPolyDataMapper.h>
+#include <vtkPoints.h>
+#include <vtkSphereSource.h>
+#include <vtkGlyph3DMapper.h>
 #include <vtkActor.h>
 #include <vtkRenderer.h>
 #include <vtkRenderWindow.h>
 #include <vtkRenderWindowInteractor.h>
+#include <vtkInteractorStyleTrackballCamera.h>
+#include <vtkUnsignedCharArray.h>
+#include <vtkFloatArray.h>
+#include <vtkCellArray.h>
+#include <vtkPolyVertex.h>
+#include <vtkUnsignedCharArray.h>
+#include <vtkPointData.h>
+#include <vtkProperty.h>
 
 
 
@@ -245,6 +256,7 @@ const string resource_file_name_alp = "../../res/3D/" + resource_file_name + ".a
 
 int main(int argc, char** argv)
 {
+#pragma region Load ALP File
     std::vector<float3> host_points;
     std::vector<float3> host_normals;
     std::vector<uchar3> host_colors;
@@ -311,7 +323,6 @@ int main(int argc, char** argv)
         alp.Serialize(resource_file_name_alp);
     }
 
-
     for (auto& p : alp.GetPoints())
     {
         auto r = p.color.x;
@@ -325,6 +336,7 @@ int main(int argc, char** argv)
     }
 
     alog("ALP %llu points loaded\n", alp.GetPoints().size());
+#pragma endregion
 
 
 
@@ -338,6 +350,8 @@ int main(int argc, char** argv)
     cudaMemcpy(pointCloud.d_normals, host_normals.data(), sizeof(Eigen::Vector3f) * pointCloud.numberOfPoints, cudaMemcpyHostToDevice);
     cudaMemcpy(pointCloud.d_colors, host_colors.data(), sizeof(Eigen::Vector3b) * pointCloud.numberOfPoints, cudaMemcpyHostToDevice);
 
+#pragma region Hashmap
+    /*
     HashMap hm;
     hm.Initialize();
 
@@ -346,43 +360,71 @@ int main(int argc, char** argv)
     hm.Serialize("../../res/3D/Voxels.ply");
 
     hm.Terminate();
+    */
+#pragma endregion
 
 
 
 
+    vtkSmartPointer<vtkPoints> points = vtkSmartPointer<vtkPoints>::New();
+    vtkSmartPointer<vtkUnsignedCharArray> colors = vtkSmartPointer<vtkUnsignedCharArray>::New();
+    vtkSmartPointer<vtkFloatArray> normals = vtkSmartPointer<vtkFloatArray>::New();
 
+    colors->SetNumberOfComponents(4); // RGBA
+    colors->SetName("Colors");
 
+    normals->SetNumberOfComponents(3);
+    normals->SetName("Normals");
 
+    for (size_t i = 0; i < host_points.size(); i++)
+    {
+        auto& p = host_points[i];
+        auto& n = host_normals[i];
+        auto& c = host_colors[i];
 
-    // Create a sphere
-    vtkSmartPointer<vtkSphereSource> sphereSource = vtkSmartPointer<vtkSphereSource>::New();
-    sphereSource->SetCenter(0.0, 0.0, 0.0);
-    sphereSource->SetRadius(5.0);
-    sphereSource->Update();
+        points->InsertNextPoint(p.x, p.y, p.z);
+        normals->InsertNextTuple3(n.x, n.y, n.z);
+        unsigned char color[4] = { c.x, c.y, c.z, 255 };
+        colors->InsertNextTypedTuple(color);
+    }
 
-    // Create a mapper
-    vtkSmartPointer<vtkPolyDataMapper> mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
-    mapper->SetInputConnection(sphereSource->GetOutputPort());
+    auto vertices = vtkSmartPointer<vtkCellArray>::New();
+    for (vtkIdType i = 0; i < host_points.size(); ++i)
+    {
+        vtkIdType pid = i;
+        vertices->InsertNextCell(1, &pid);  // 개별 점 처리
+    }
 
-    // Create an actor
-    vtkSmartPointer<vtkActor> actor = vtkSmartPointer<vtkActor>::New();
+    auto polyData = vtkSmartPointer<vtkPolyData>::New();
+    polyData->SetPoints(points);
+    polyData->SetVerts(vertices);
+    polyData->GetPointData()->SetScalars(colors);
+    polyData->GetPointData()->SetNormals(normals);
+
+    auto mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+    mapper->SetInputData(polyData);
+    mapper->SetScalarModeToUsePointData();
+    mapper->SetColorModeToDirectScalars();
+    mapper->SetScalarVisibility(true);
+
+    auto actor = vtkSmartPointer<vtkActor>::New();
     actor->SetMapper(mapper);
+    actor->GetProperty()->SetPointSize(2); // 점 크기 지정
+    actor->GetProperty()->SetRepresentationToPoints(); // 꼭 필요!
 
-    // Create a renderer
     vtkSmartPointer<vtkRenderer> renderer = vtkSmartPointer<vtkRenderer>::New();
-    renderer->AddActor(actor);
-    renderer->SetBackground(0.1, 0.2, 0.4); // Background color dark blue
-
-    // Create a render window
     vtkSmartPointer<vtkRenderWindow> renderWindow = vtkSmartPointer<vtkRenderWindow>::New();
     renderWindow->AddRenderer(renderer);
-    renderWindow->SetSize(800, 600);
-
-    // Create a render window interactor
     vtkSmartPointer<vtkRenderWindowInteractor> interactor = vtkSmartPointer<vtkRenderWindowInteractor>::New();
     interactor->SetRenderWindow(renderWindow);
+    vtkSmartPointer<vtkInteractorStyleTrackballCamera> style = vtkSmartPointer<vtkInteractorStyleTrackballCamera>::New();
+    interactor->SetInteractorStyle(style);
 
-    // Start the rendering loop
+
+    renderer->AddActor(actor);
+    renderer->SetBackground(0.1, 0.1, 0.2);
+
+    renderWindow->SetSize(800, 600);
     renderWindow->Render();
     interactor->Start();
 
