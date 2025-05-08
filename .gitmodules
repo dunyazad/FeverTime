@@ -1,0 +1,3 @@
+[submodule "ext/VTK"]
+	path = ext/VTK
+	url = https://github.com/Kitware/VTK.git
