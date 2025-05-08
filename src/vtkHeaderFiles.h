@@ -1,0 +1,23 @@
+#pragma once
+
+#include <vtkSmartPointer.h>
+#include <vtkPolyData.h>
+#include <vtkPolyDataMapper.h>
+#include <vtkPoints.h>
+#include <vtkSphereSource.h>
+#include <vtkGlyph3DMapper.h>
+#include <vtkActor.h>
+#include <vtkRenderer.h>
+#include <vtkRenderWindow.h>
+#include <vtkRenderWindowInteractor.h>
+#include <vtkInteractorStyleTrackballCamera.h>
+#include <vtkUnsignedCharArray.h>
+#include <vtkFloatArray.h>
+#include <vtkCellArray.h>
+#include <vtkPolyVertex.h>
+#include <vtkUnsignedCharArray.h>
+#include <vtkPointData.h>
+#include <vtkProperty.h>
+#include <vtkCommand.h>
+#include <vtkPointPicker.h>
+#include <vtkCamera.h>

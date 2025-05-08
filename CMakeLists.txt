@@ -8,18 +8,21 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(VTK_DIR "${CMAKE_SOURCE_DIR}/ext/VTK/build")
 find_package(VTK REQUIRED COMPONENTS
     CommonCore
+    CommonDataModel
+    FiltersCore
     FiltersSources
     RenderingCore
     RenderingOpenGL2
     InteractionStyle
     RenderingFreeType
+    IOInfovis
 )
 
 # CUDA 설정
 enable_language(CUDA)
 
 # 소스 수집 (CUDA 포함)
-file(GLOB_RECURSE SOURCES "src/*.cpp" "src/*.cxx" "src/*.cu")
+file(GLOB_RECURSE SOURCES "src/*.h" "src/*.hpp" "src/*.cpp" "src/*.cxx" "src/*.cuh" "src/*.cu")
 
 # 실행 파일 생성
 add_executable(FeverTime ${SOURCES})
