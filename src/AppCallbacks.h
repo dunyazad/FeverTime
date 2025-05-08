@@ -1,0 +1,31 @@
+#pragma once
+
+#include <Common.h>
+
+class EventCallback : public vtkCommand
+{
+public:
+    inline void SetRenderer(vtkRenderer* renderer) { this->renderer = renderer; }
+
+protected:
+    vtkRenderer* renderer = nullptr;
+};
+
+class DoubleClickPickerCallback : public EventCallback
+{
+public:
+    static DoubleClickPickerCallback* New();
+
+    void Execute(vtkObject* caller, unsigned long eventId, void* callData) override;
+
+private:
+    std::chrono::steady_clock::time_point lastClickTime = std::chrono::steady_clock::now();
+};
+
+class KeyPressCallback : public EventCallback
+{
+public:
+    static KeyPressCallback* New();
+
+    void Execute(vtkObject* caller, unsigned long eventId, void* callData) override;
+};

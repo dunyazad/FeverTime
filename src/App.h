@@ -1,10 +1,9 @@
 #pragma once
 
-#include <stdHeaderFiles.h>
-#include <vtkHeaderFiles.h>
-#include <cudaHeaderFiles.h>
+#include <Common.h>
 
 #include <Serialization.hpp>
+#include <AppCallbacks.h>
 
 class App
 {
