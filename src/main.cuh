@@ -18,12 +18,26 @@ struct HashMapVoxel
     Eigen::Vector3b color = Eigen::Vector3b(255, 255, 255);
 };
 
-struct PointCloud
+struct Host_PointCloud
 {
-    Eigen::Vector3f* d_points = nullptr;
-    Eigen::Vector3f* d_normals = nullptr;
-    Eigen::Vector3b* d_colors = nullptr;
+    Eigen::Vector3f* points = nullptr;
+    Eigen::Vector3f* normals = nullptr;
+    Eigen::Vector3b* colors = nullptr;
     unsigned int numberOfPoints = 0;
+
+    void Initialize(unsigned int numberOfPoints);
+    void Terminate();
+};
+
+struct Device_PointCloud
+{
+    Eigen::Vector3f* points = nullptr;
+    Eigen::Vector3f* normals = nullptr;
+    Eigen::Vector3b* colors = nullptr;
+    unsigned int numberOfPoints = 0;
+
+    void Initialize(unsigned int numberOfPoints);
+    void Terminate();
 };
 
 struct PointPNC
@@ -35,17 +49,21 @@ struct PointPNC
 
 struct HashMap
 {
-    size_t tableSize = 10485760;
+    size_t capacity = 1024 * 1024 * 100;
     unsigned int maxProbe = 32;
     unsigned int blockSize = 256;
 
-    HashMapVoxel* d_table = nullptr;
+    HashMapVoxel* d_hashTable = nullptr;
+    unsigned int* d_numberOfOccupiedVoxels = nullptr;
+    int3* d_occupiedVoxelIndices = nullptr;
 
     void Initialize();
     void Terminate();
 
-    void InsertHPoints(Eigen::Vector3f* h_points, Eigen::Vector3f* h_normals, Eigen::Vector3b* h_colors, unsigned numberOfPoints);
-    void InsertDPoints(Eigen::Vector3f* d_points, Eigen::Vector3f* d_normals, Eigen::Vector3b* d_colors, unsigned numberOfPoints);
+    void InsertHPoints(Host_PointCloud pointCloud);
+    void InsertDPoints(Device_PointCloud pointCloud);
 
     void Serialize(const std::string& filename);
+
+    void Clustering();
 };

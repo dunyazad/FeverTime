@@ -2,8 +2,6 @@
 
 #include <main.cuh>
 
-PointCloud pointCloud;
-
 ALPFormat<PointPNC> alp;
 
 const string resource_file_name = "Compound";
@@ -17,10 +15,6 @@ int main(int argc, char** argv)
         app.GetRenderer()->SetBackground(0.3, 0.5, 0.7);
 
 #pragma region Load ALP File
-        std::vector<float3> host_points;
-        std::vector<float3> host_normals;
-        std::vector<uchar3> host_colors;
-
         if (false == alp.Deserialize(resource_file_name_alp))
         {
             bool foundZero = false;
@@ -83,46 +77,34 @@ int main(int argc, char** argv)
             alp.Serialize(resource_file_name_alp);
         }
 
-        for (auto& p : alp.GetPoints())
+        Host_PointCloud pointCloud;
+        pointCloud.Initialize(alp.GetPoints().size());
+
+        for (size_t i = 0; i < alp.GetPoints().size(); i++)
         {
+            auto& p = alp.GetPoints()[i];
+
             auto r = p.color.x;
             auto g = p.color.y;
             auto b = p.color.z;
-            auto a = 1.f;
 
-            host_points.push_back(make_float3(p.position.x, p.position.y, p.position.z));
-            host_normals.push_back(make_float3(p.normal.x, p.normal.y, p.normal.z));
-            host_colors.push_back(make_uchar3(r * 255, g * 255, b * 255));
+            pointCloud.points[i] = Eigen::Vector3f(p.position.x, p.position.y, p.position.z);
+            pointCloud.normals[i] = Eigen::Vector3f(p.normal.x, p.normal.y, p.normal.z);
+            pointCloud.colors[i] = Eigen::Vector3b(r * 255, g * 255, b * 255);
         }
 
         alog("ALP %llu points loaded\n", alp.GetPoints().size());
 #pragma endregion
 
 #pragma region Hashmap
-        /*
-        pointCloud.numberOfPoints = host_points.size();
-
-        cudaMalloc(&pointCloud.d_points, sizeof(Eigen::Vector3f) * pointCloud.numberOfPoints);
-        cudaMalloc(&pointCloud.d_normals, sizeof(Eigen::Vector3f) * pointCloud.numberOfPoints);
-        cudaMalloc(&pointCloud.d_colors, sizeof(Eigen::Vector3b) * pointCloud.numberOfPoints);
-
-        cudaMemcpy(pointCloud.d_points, host_points.data(), sizeof(Eigen::Vector3f) * pointCloud.numberOfPoints, cudaMemcpyHostToDevice);
-        cudaMemcpy(pointCloud.d_normals, host_normals.data(), sizeof(Eigen::Vector3f) * pointCloud.numberOfPoints, cudaMemcpyHostToDevice);
-        cudaMemcpy(pointCloud.d_colors, host_colors.data(), sizeof(Eigen::Vector3b) * pointCloud.numberOfPoints, cudaMemcpyHostToDevice);
-
         HashMap hm;
         hm.Initialize();
 
-        hm.InsertDPoints(pointCloud.d_points, pointCloud.d_normals, pointCloud.d_colors, pointCloud.numberOfPoints);
+        hm.InsertHPoints(pointCloud);
 
-        hm.Serialize("../../res/3D/Voxels.ply");
+        //hm.Serialize("../../res/3D/Voxels.ply");
 
         hm.Terminate();
-
-        cudaFree(pointCloud.d_points);
-        cudaFree(pointCloud.d_normals);
-        cudaFree(pointCloud.d_colors);
-        */
 #pragma endregion
 
         vtkSmartPointer<vtkPoints> points = vtkSmartPointer<vtkPoints>::New();
@@ -141,22 +123,22 @@ int main(int argc, char** argv)
         normalColors->SetName("Colors");
 
 
-        for (size_t i = 0; i < host_points.size(); i++)
+        for (unsigned int i = 0; i < pointCloud.numberOfPoints; i++)
         {
-            auto& p = host_points[i];
-            auto& n = host_normals[i];
-            auto& c = host_colors[i];
+            auto& p = pointCloud.points[i];
+            auto& n = pointCloud.normals[i];
+            auto& c = pointCloud.colors[i];
 
-            points->InsertNextPoint(p.x, p.y, p.z);
-            normals->InsertNextTuple3(n.x, n.y, n.z);
-            unsigned char color[4] = { c.x, c.y, c.z, 255 };
+            points->InsertNextPoint(p.x(), p.y(), p.z());
+            normals->InsertNextTuple3(n.x(), n.y(), n.z());
+            unsigned char color[4] = { c.x(), c.y(), c.z(), 255 };
             colors->InsertNextTypedTuple(color);
 
-            double startPoint[3] = { p.x, p.y, p.z };
+            double startPoint[3] = { p.x(), p.y(), p.z() };
             double endPoint[3] = {
-                p.x + n.x * 0.1,  // 길이 조절 (0.02)
-                p.y + n.y * 0.1,
-                p.z + n.z * 0.1
+                p.x() + n.x() * 0.1,  // 길이 조절 (0.02)
+                p.y() + n.y() * 0.1,
+                p.z() + n.z() * 0.1
             };
 
             vtkIdType idStart = normalLinesPoints->InsertNextPoint(startPoint);
@@ -168,19 +150,19 @@ int main(int argc, char** argv)
 
             normalLines->InsertNextCell(line);
 
-            unsigned char normalColor[4] = {
-                static_cast<unsigned char>((n.x * 0.5f + 0.5f) * 255),
-                static_cast<unsigned char>((n.y * 0.5f + 0.5f) * 255),
-                static_cast<unsigned char>((n.z * 0.5f + 0.5f) * 255),
+            unsigned char endColor[4] = {
+                static_cast<unsigned char>((n.x() * 0.5f + 0.5f) * 255),
+                static_cast<unsigned char>((n.y() * 0.5f + 0.5f) * 255),
+                static_cast<unsigned char>((n.z() * 0.5f + 0.5f) * 255),
                 255
             };
-            normalColors->InsertNextTypedTuple(normalColor);
-            normalColors->InsertNextTypedTuple(normalColor); // start, end 같은 색상
+            normalColors->InsertNextTypedTuple(color);
+            normalColors->InsertNextTypedTuple(endColor);
         }
 
         {
             auto vertices = vtkSmartPointer<vtkCellArray>::New();
-            for (vtkIdType i = 0; i < host_points.size(); ++i)
+            for (vtkIdType i = 0; i < pointCloud.numberOfPoints; ++i)
             {
                 vtkIdType pid = i;
                 vertices->InsertNextCell(1, &pid);
@@ -220,7 +202,7 @@ int main(int argc, char** argv)
             normalMapper->SetScalarModeToUsePointData();
             normalMapper->SetColorModeToDirectScalars();
             normalMapper->SetScalarVisibility(true);
-            normalActor->GetProperty()->SetLineWidth(1.5);       // 선 두께
+            normalActor->GetProperty()->SetLineWidth(1.5);
 
             app.GetRenderer()->AddActor(normalActor);
         }
@@ -240,6 +222,8 @@ int main(int argc, char** argv)
             keyCallback->SetApp(&app);
             app.GetInteractor()->AddObserver(vtkCommand::KeyPressEvent, keyCallback);
         }
+
+        pointCloud.Terminate();
     });
 
     app.Initialize();
