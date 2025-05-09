@@ -14,6 +14,7 @@ int main(int argc, char** argv)
 {
     App app;
     app.SetInitializeCallback([](App& app) {
+        app.GetRenderer()->SetBackground(0.3, 0.5, 0.7);
 
 #pragma region Load ALP File
         std::vector<float3> host_points;
@@ -97,6 +98,8 @@ int main(int argc, char** argv)
         alog("ALP %llu points loaded\n", alp.GetPoints().size());
 #pragma endregion
 
+#pragma region Hashmap
+        /*
         pointCloud.numberOfPoints = host_points.size();
 
         cudaMalloc(&pointCloud.d_points, sizeof(Eigen::Vector3f) * pointCloud.numberOfPoints);
@@ -107,8 +110,6 @@ int main(int argc, char** argv)
         cudaMemcpy(pointCloud.d_normals, host_normals.data(), sizeof(Eigen::Vector3f) * pointCloud.numberOfPoints, cudaMemcpyHostToDevice);
         cudaMemcpy(pointCloud.d_colors, host_colors.data(), sizeof(Eigen::Vector3b) * pointCloud.numberOfPoints, cudaMemcpyHostToDevice);
 
-#pragma region Hashmap
-        /*
         HashMap hm;
         hm.Initialize();
 
@@ -117,18 +118,28 @@ int main(int argc, char** argv)
         hm.Serialize("../../res/3D/Voxels.ply");
 
         hm.Terminate();
+
+        cudaFree(pointCloud.d_points);
+        cudaFree(pointCloud.d_normals);
+        cudaFree(pointCloud.d_colors);
         */
 #pragma endregion
 
         vtkSmartPointer<vtkPoints> points = vtkSmartPointer<vtkPoints>::New();
-        vtkSmartPointer<vtkUnsignedCharArray> colors = vtkSmartPointer<vtkUnsignedCharArray>::New();
         vtkSmartPointer<vtkFloatArray> normals = vtkSmartPointer<vtkFloatArray>::New();
+        normals->SetNumberOfComponents(3);
+        normals->SetName("Normals");
 
+        vtkSmartPointer<vtkUnsignedCharArray> colors = vtkSmartPointer<vtkUnsignedCharArray>::New();
         colors->SetNumberOfComponents(4); // RGBA
         colors->SetName("Colors");
 
-        normals->SetNumberOfComponents(3);
-        normals->SetName("Normals");
+        vtkSmartPointer<vtkPoints> normalLinesPoints = vtkSmartPointer<vtkPoints>::New();
+        vtkSmartPointer<vtkCellArray> normalLines = vtkSmartPointer<vtkCellArray>::New();
+        vtkSmartPointer<vtkUnsignedCharArray> normalColors = vtkSmartPointer<vtkUnsignedCharArray>::New();
+        normalColors->SetNumberOfComponents(4); // RGBA
+        normalColors->SetName("Colors");
+
 
         for (size_t i = 0; i < host_points.size(); i++)
         {
@@ -140,31 +151,79 @@ int main(int argc, char** argv)
             normals->InsertNextTuple3(n.x, n.y, n.z);
             unsigned char color[4] = { c.x, c.y, c.z, 255 };
             colors->InsertNextTypedTuple(color);
+
+            double startPoint[3] = { p.x, p.y, p.z };
+            double endPoint[3] = {
+                p.x + n.x * 0.1,  // 길이 조절 (0.02)
+                p.y + n.y * 0.1,
+                p.z + n.z * 0.1
+            };
+
+            vtkIdType idStart = normalLinesPoints->InsertNextPoint(startPoint);
+            vtkIdType idEnd = normalLinesPoints->InsertNextPoint(endPoint);
+
+            vtkSmartPointer<vtkLine> line = vtkSmartPointer<vtkLine>::New();
+            line->GetPointIds()->SetId(0, idStart);
+            line->GetPointIds()->SetId(1, idEnd);
+
+            normalLines->InsertNextCell(line);
+
+            unsigned char normalColor[4] = {
+                static_cast<unsigned char>((n.x * 0.5f + 0.5f) * 255),
+                static_cast<unsigned char>((n.y * 0.5f + 0.5f) * 255),
+                static_cast<unsigned char>((n.z * 0.5f + 0.5f) * 255),
+                255
+            };
+            normalColors->InsertNextTypedTuple(normalColor);
+            normalColors->InsertNextTypedTuple(normalColor); // start, end 같은 색상
         }
 
-        auto vertices = vtkSmartPointer<vtkCellArray>::New();
-        for (vtkIdType i = 0; i < host_points.size(); ++i)
         {
-            vtkIdType pid = i;
-            vertices->InsertNextCell(1, &pid);
+            auto vertices = vtkSmartPointer<vtkCellArray>::New();
+            for (vtkIdType i = 0; i < host_points.size(); ++i)
+            {
+                vtkIdType pid = i;
+                vertices->InsertNextCell(1, &pid);
+            }
+
+            auto polyData = vtkSmartPointer<vtkPolyData>::New();
+            polyData->SetPoints(points);
+            polyData->SetVerts(vertices);
+            polyData->GetPointData()->SetScalars(colors);
+            polyData->GetPointData()->SetNormals(normals);
+
+            auto mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+            mapper->SetInputData(polyData);
+            mapper->SetScalarModeToUsePointData();
+            mapper->SetColorModeToDirectScalars();
+            mapper->SetScalarVisibility(true);
+
+            auto actor = vtkSmartPointer<vtkActor>::New();
+            actor->SetMapper(mapper);
+            actor->GetProperty()->SetPointSize(2);
+            actor->GetProperty()->SetRepresentationToPoints();
+
+            app.GetRenderer()->AddActor(actor);
         }
 
-        auto polyData = vtkSmartPointer<vtkPolyData>::New();
-        polyData->SetPoints(points);
-        polyData->SetVerts(vertices);
-        polyData->GetPointData()->SetScalars(colors);
-        polyData->GetPointData()->SetNormals(normals);
+        {
+            auto normalPolyData = vtkSmartPointer<vtkPolyData>::New();
+            normalPolyData->SetPoints(normalLinesPoints);
+            normalPolyData->SetLines(normalLines);
+            normalPolyData->GetPointData()->SetScalars(normalColors);
 
-        auto mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
-        mapper->SetInputData(polyData);
-        mapper->SetScalarModeToUsePointData();
-        mapper->SetColorModeToDirectScalars();
-        mapper->SetScalarVisibility(true);
+            auto normalMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+            normalMapper->SetInputData(normalPolyData);
 
-        auto actor = vtkSmartPointer<vtkActor>::New();
-        actor->SetMapper(mapper);
-        actor->GetProperty()->SetPointSize(2);
-        actor->GetProperty()->SetRepresentationToPoints();
+            auto normalActor = vtkSmartPointer<vtkActor>::New();
+            normalActor->SetMapper(normalMapper);
+            normalMapper->SetScalarModeToUsePointData();
+            normalMapper->SetColorModeToDirectScalars();
+            normalMapper->SetScalarVisibility(true);
+            normalActor->GetProperty()->SetLineWidth(1.5);       // 선 두께
+
+            app.GetRenderer()->AddActor(normalActor);
+        }
 
         {
             auto picker = vtkSmartPointer<vtkPointPicker>::New();
@@ -181,13 +240,7 @@ int main(int argc, char** argv)
             keyCallback->SetApp(&app);
             app.GetInteractor()->AddObserver(vtkCommand::KeyPressEvent, keyCallback);
         }
-
-        app.GetRenderer()->AddActor(actor);
-        app.GetRenderer()->SetBackground(0.3, 0.5, 0.7);
-
-        //app.GetRenderWindow()->SetSize(800, 600);
-
-        });
+    });
 
     app.Initialize();
     app.Run();
