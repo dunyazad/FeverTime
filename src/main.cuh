@@ -17,6 +17,7 @@ struct HashMapVoxel
     Eigen::Vector3f position = Eigen::Vector3f(0.0f, 0.0f, 0.0f);
     Eigen::Vector3f normal = Eigen::Vector3f(0.0f, 0.0f, 0.0f);
     Eigen::Vector3b color = Eigen::Vector3b(255, 255, 255);
+    float divergence;
 };
 
 struct Host_PointCloud
@@ -69,7 +70,11 @@ struct HashMap
     void InsertHPoints(Host_PointCloud pointCloud);
     void InsertDPoints(Device_PointCloud pointCloud);
 
-    void Serialize(const std::string& filename);
+    void ComputeNormalDivergence();
 
-    void Clustering();
+    void SerializeToPLY(const std::string& filename);
+    void SerializeColoringByLabel(const std::string& filename);
+    void SerializeColoringByDivergence(const std::string& filename);
+
+    vector<unsigned int> Clustering(Host_PointCloud pointCloud);
 };

@@ -102,7 +102,13 @@ int main(int argc, char** argv)
 
         hm.InsertHPoints(pointCloud);
 
-        hm.Serialize("../../res/3D/Voxels.ply");
+        //hm.ComputeNormalDivergence();
+
+        auto labels = hm.Clustering(pointCloud);
+
+        //hm.SerializeToPLY("../../res/3D/Voxels.ply");
+        //hm.SerializeColoringByLabel("../../res/3D/VoxelsColoringByLabel.ply");
+        //hm.SerializeColoringByDivergence("../../res/3D/VoxelsColoringByDivergence.ply");
 
         hm.Terminate();
 #pragma endregion
@@ -130,8 +136,39 @@ int main(int argc, char** argv)
 
             points->InsertNextPoint(p.x(), p.y(), p.z());
             normals->InsertNextTuple3(n.x(), n.y(), n.z());
-            unsigned char color[4] = { c.x(), c.y(), c.z(), 255 };
-            colors->InsertNextTypedTuple(color);
+
+            auto hashToFloat = [](uint32_t seed) -> float {
+                seed ^= seed >> 13;
+                seed *= 0x5bd1e995;
+                seed ^= seed >> 15;
+                return (seed & 0xFFFFFF) / static_cast<float>(0xFFFFFF);
+            };
+
+            unsigned char color[4];
+            auto label = labels[i];
+            if (0 != label)
+            {
+                float r = hashToFloat(label * 3 + 0);
+                float g = hashToFloat(label * 3 + 1);
+                float b = hashToFloat(label * 3 + 2);
+
+                //alog("label : %d\n", label);
+
+                //unsigned char color[4] = { c.x(), c.y(), c.z(), 255 };
+                color[0] = (unsigned char)(r * 255.0f);
+                color[1] = (unsigned char)(g * 255.0f);
+                color[2] = (unsigned char)(b * 255.0f);
+                color[3] = 255;
+                colors->InsertNextTypedTuple(color);
+            }
+            else
+            {
+                color[0] = c.x();
+                color[1] = c.y();
+                color[2] = c.z();
+                color[3] = 255;
+                colors->InsertNextTypedTuple(color);
+            }
 
             double startPoint[3] = { p.x(), p.y(), p.z() };
             double endPoint[3] = {
@@ -203,7 +240,7 @@ int main(int argc, char** argv)
             normalMapper->SetScalarVisibility(true);
             normalActor->GetProperty()->SetLineWidth(1.5);
 
-            app.GetRenderer()->AddActor(normalActor);
+            //app.GetRenderer()->AddActor(normalActor);
         }
 
         {
