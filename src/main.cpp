@@ -102,7 +102,7 @@ int main(int argc, char** argv)
 
         hm.InsertHPoints(pointCloud);
 
-        //hm.Serialize("../../res/3D/Voxels.ply");
+        hm.Serialize("../../res/3D/Voxels.ply");
 
         hm.Terminate();
 #pragma endregion
@@ -113,13 +113,13 @@ int main(int argc, char** argv)
         normals->SetName("Normals");
 
         vtkSmartPointer<vtkUnsignedCharArray> colors = vtkSmartPointer<vtkUnsignedCharArray>::New();
-        colors->SetNumberOfComponents(4); // RGBA
+        colors->SetNumberOfComponents(4);
         colors->SetName("Colors");
 
         vtkSmartPointer<vtkPoints> normalLinesPoints = vtkSmartPointer<vtkPoints>::New();
         vtkSmartPointer<vtkCellArray> normalLines = vtkSmartPointer<vtkCellArray>::New();
         vtkSmartPointer<vtkUnsignedCharArray> normalColors = vtkSmartPointer<vtkUnsignedCharArray>::New();
-        normalColors->SetNumberOfComponents(4); // RGBA
+        normalColors->SetNumberOfComponents(4);
         normalColors->SetName("Colors");
 
         for (unsigned int i = 0; i < pointCloud.numberOfPoints; i++)
@@ -135,7 +135,7 @@ int main(int argc, char** argv)
 
             double startPoint[3] = { p.x(), p.y(), p.z() };
             double endPoint[3] = {
-                p.x() + n.x() * 0.1,  // 길이 조절 (0.02)
+                p.x() + n.x() * 0.1,
                 p.y() + n.y() * 0.1,
                 p.z() + n.z() * 0.1
             };

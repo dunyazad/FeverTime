@@ -62,6 +62,7 @@ __global__ void Kernel_InsertPoints(HashMapInfo info, Device_PointCloud pointClo
             //alog("%d, %d, %d\n", coord.x, coord.y, coord.z);
 
             info.d_hashTable[slot].label = slot;
+            info.d_hashTable[slot].coord = coord;
             info.d_hashTable[slot].position = Eigen::Vector3f((float)coord.x * info.voxelSize, (float)coord.y * info.voxelSize, (float)coord.z * info.voxelSize);
             info.d_hashTable[slot].normal = Eigen::Vector3f(n.x(), n.y(), n.z());
             info.d_hashTable[slot].color = Eigen::Vector3b(c.x(), c.y(), c.z());
@@ -74,23 +75,30 @@ __global__ void Kernel_InsertPoints(HashMapInfo info, Device_PointCloud pointClo
     }
 }
 
-__global__ void Kernel_Serialize(HashMapVoxel* d_hashTable, size_t capacity,
-    Eigen::Vector3f* d_points, Eigen::Vector3f* d_normals, Eigen::Vector3b* d_colors,
-    unsigned int* numberOfOccupiedVoxels)
+__global__ void Kernel_Serialize(HashMapInfo info, Device_PointCloud pointCloud)
 {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx >= capacity) return;
+    if (idx >= pointCloud.numberOfPoints) return;
 
-    auto& voxel = d_hashTable[idx];
+    int3 coord = info.d_occupiedVoxelIndices[idx];
+    size_t h = voxel_hash(coord, info.capacity);
 
-    if (0 != voxel.label)
+    for (unsigned int i = 0; i < info.maxProbe; ++i)
     {
-        //alog("%f, %f, %f\n", voxel.position.x(), voxel.position.y(), voxel.position.z());
+        size_t slot = (h + i) % info.capacity;
+        auto& voxel = info.d_hashTable[slot];
 
-        auto oldIndex = atomicAdd(numberOfOccupiedVoxels, 1);
-        d_points[oldIndex] = voxel.position;
-        d_normals[oldIndex] = voxel.normal;
-        d_colors[oldIndex] = voxel.color;
+        if (0 == voxel.label) return;
+
+        if (voxel.coord.x == coord.x &&
+            voxel.coord.y == coord.y &&
+            voxel.coord.z == coord.z)
+        {
+            pointCloud.points[idx] = voxel.position;
+            pointCloud.normals[idx] = voxel.normal;
+            pointCloud.colors[idx] = voxel.color;
+            return;
+        }
     }
 }
 
@@ -149,39 +157,27 @@ void HashMap::Serialize(const std::string& filename)
     unsigned int numberOfOccupiedVoxels = 0;
     cudaMemcpy(&numberOfOccupiedVoxels, info.d_numberOfOccupiedVoxels, sizeof(unsigned int), cudaMemcpyDeviceToHost);
 
-    Eigen::Vector3f* d_points = nullptr;
-    Eigen::Vector3f* d_normals = nullptr;
-    Eigen::Vector3b* d_colors = nullptr;
+    alog("numberOfOccupiedVoxels : %d\n", numberOfOccupiedVoxels);
 
-    cudaMalloc(&d_points, sizeof(Eigen::Vector3f) * info.capacity);
-    cudaMalloc(&d_normals, sizeof(Eigen::Vector3f) * info.capacity);
-    cudaMalloc(&d_colors, sizeof(Eigen::Vector3b) * info.capacity);
+    Device_PointCloud pointCloud;
+    pointCloud.Initialize(numberOfOccupiedVoxels);
 
     unsigned int blockSize = 256;
-    unsigned int gridOccupied = (info.capacity + blockSize - 1) / blockSize;
+    unsigned int gridOccupied = (numberOfOccupiedVoxels + blockSize - 1) / blockSize;
 
-    Kernel_Serialize << <gridOccupied, blockSize >> > (
-        info.d_hashTable,
-        info.capacity,
-        d_points,
-        d_normals,
-        d_colors,
-        info.d_numberOfOccupiedVoxels);
+    Kernel_Serialize << <gridOccupied, blockSize >> > (info, pointCloud);
 
     cudaDeviceSynchronize();
 
-    unsigned int h_numberOfOccupiedVoxels = 0;
-    cudaMemcpy(&h_numberOfOccupiedVoxels, info.d_numberOfOccupiedVoxels, sizeof(unsigned int), cudaMemcpyDeviceToHost);
+    Eigen::Vector3f* h_points = new Eigen::Vector3f[numberOfOccupiedVoxels];
+    Eigen::Vector3f* h_normals = new Eigen::Vector3f[numberOfOccupiedVoxels];
+    Eigen::Vector3b* h_colors = new Eigen::Vector3b[numberOfOccupiedVoxels];
 
-    Eigen::Vector3f* h_points = new Eigen::Vector3f[h_numberOfOccupiedVoxels];
-    Eigen::Vector3f* h_normals = new Eigen::Vector3f[h_numberOfOccupiedVoxels];
-    Eigen::Vector3b* h_colors = new Eigen::Vector3b[h_numberOfOccupiedVoxels];
+    cudaMemcpy(h_points, pointCloud.points, sizeof(Eigen::Vector3f) * numberOfOccupiedVoxels, cudaMemcpyDeviceToHost);
+    cudaMemcpy(h_normals, pointCloud.normals, sizeof(Eigen::Vector3f) * numberOfOccupiedVoxels, cudaMemcpyDeviceToHost);
+    cudaMemcpy(h_colors, pointCloud.colors, sizeof(Eigen::Vector3b) * numberOfOccupiedVoxels, cudaMemcpyDeviceToHost);
 
-    cudaMemcpy(h_points, d_points, sizeof(Eigen::Vector3f) * h_numberOfOccupiedVoxels, cudaMemcpyDeviceToHost);
-    cudaMemcpy(h_normals, d_normals, sizeof(Eigen::Vector3f) * h_numberOfOccupiedVoxels, cudaMemcpyDeviceToHost);
-    cudaMemcpy(h_colors, d_colors, sizeof(Eigen::Vector3b) * h_numberOfOccupiedVoxels, cudaMemcpyDeviceToHost);
-
-    for (size_t i = 0; i < h_numberOfOccupiedVoxels; i++)
+    for (size_t i = 0; i < numberOfOccupiedVoxels; i++)
     {
         auto& p = h_points[i];
         auto& n = h_normals[i];
@@ -194,9 +190,7 @@ void HashMap::Serialize(const std::string& filename)
 
     ply.Serialize(filename);
 
-    cudaFree(d_points);
-    cudaFree(d_normals);
-    cudaFree(d_colors);
+    pointCloud.Terminate();
 
     delete[] h_points;
     delete[] h_normals;

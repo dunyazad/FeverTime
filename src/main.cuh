@@ -12,6 +12,7 @@ namespace Eigen {
 
 struct HashMapVoxel
 {
+    int3 coord = make_int3(0, 0, 0);
     unsigned int label = 0;
     Eigen::Vector3f position = Eigen::Vector3f(0.0f, 0.0f, 0.0f);
     Eigen::Vector3f normal = Eigen::Vector3f(0.0f, 0.0f, 0.0f);
