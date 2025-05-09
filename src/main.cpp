@@ -122,7 +122,6 @@ int main(int argc, char** argv)
         normalColors->SetNumberOfComponents(4); // RGBA
         normalColors->SetName("Colors");
 
-
         for (unsigned int i = 0; i < pointCloud.numberOfPoints; i++)
         {
             auto& p = pointCloud.points[i];

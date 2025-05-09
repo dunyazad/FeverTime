@@ -47,15 +47,20 @@ struct PointPNC
     float3 color;
 };
 
-struct HashMap
+struct HashMapInfo
 {
     size_t capacity = 1024 * 1024 * 100;
     unsigned int maxProbe = 32;
-    unsigned int blockSize = 256;
+    float voxelSize = 0.1f;
 
     HashMapVoxel* d_hashTable = nullptr;
     unsigned int* d_numberOfOccupiedVoxels = nullptr;
     int3* d_occupiedVoxelIndices = nullptr;
+};
+
+struct HashMap
+{
+    HashMapInfo info;
 
     void Initialize();
     void Terminate();
