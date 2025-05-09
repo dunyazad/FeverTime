@@ -2,13 +2,15 @@
 
 #include <Common.h>
 
+class App;
+
 class EventCallback : public vtkCommand
 {
 public:
-    inline void SetRenderer(vtkRenderer* renderer) { this->renderer = renderer; }
+    inline void SetApp(App* app) { this->app = app; }
 
 protected:
-    vtkRenderer* renderer = nullptr;
+    App* app = nullptr;
 };
 
 class DoubleClickPickerCallback : public EventCallback

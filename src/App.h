@@ -2,6 +2,7 @@
 
 #include <Common.h>
 
+#include <Monitor.h>
 #include <Serialization.hpp>
 #include <AppCallbacks.h>
 

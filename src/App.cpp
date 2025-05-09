@@ -1,5 +1,8 @@
 #include "App.h"
 
+#include <vtkRenderWindow.h>
+#include <windows.h> // For HWND
+
 App::App()
 {
 }
@@ -31,5 +34,13 @@ void App::Terminate()
 void App::Run()
 {
 	renderWindow->Render();
+
+#ifdef _WINDOWS
+    MaximizeConsoleWindowOnMonitor(1);
+
+    HWND hwnd = reinterpret_cast<HWND>(renderWindow->GetGenericWindowId());
+    MaximizeWindowOnMonitor(hwnd, 2);
+#endif
+
 	interactor->Start();
 }

@@ -19,7 +19,7 @@ int main(int argc, char** argv)
         std::vector<float3> host_points;
         std::vector<float3> host_normals;
         std::vector<uchar3> host_colors;
-        
+
         if (false == alp.Deserialize(resource_file_name_alp))
         {
             bool foundZero = false;
@@ -171,21 +171,21 @@ int main(int argc, char** argv)
             app.GetInteractor()->SetPicker(picker);
 
             auto doubleClickPickerCallback = vtkSmartPointer<DoubleClickPickerCallback>::New();
-            doubleClickPickerCallback->SetRenderer(app.GetRenderer());
+            doubleClickPickerCallback->SetApp(&app);
 
             app.GetInteractor()->AddObserver(vtkCommand::LeftButtonPressEvent, doubleClickPickerCallback);
         }
 
         {
             auto keyCallback = vtkSmartPointer<KeyPressCallback>::New();
-            keyCallback->SetRenderer(app.GetRenderer());
+            keyCallback->SetApp(&app);
             app.GetInteractor()->AddObserver(vtkCommand::KeyPressEvent, keyCallback);
         }
 
         app.GetRenderer()->AddActor(actor);
         app.GetRenderer()->SetBackground(0.3, 0.5, 0.7);
 
-        app.GetRenderWindow()->SetSize(800, 600);
+        //app.GetRenderWindow()->SetSize(800, 600);
 
         });
 

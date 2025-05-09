@@ -1,4 +1,5 @@
 #include <AppCallbacks.h>
+#include <App.h>
 
 DoubleClickPickerCallback* DoubleClickPickerCallback::New()
 {
@@ -18,7 +19,7 @@ void DoubleClickPickerCallback::Execute(vtkObject* caller, unsigned long eventId
     {
         int x, y;
         interactor->GetEventPosition(x, y);
-        if (picker->Pick(x, y, 0, renderer))
+        if (picker->Pick(x, y, 0, app->GetRenderer()))
         {
             /*
             vtkIdType pid = picker->GetPointId();
@@ -36,29 +37,22 @@ void DoubleClickPickerCallback::Execute(vtkObject* caller, unsigned long eventId
 
             if (pid >= 0)
             {
-                vtkCamera* camera = renderer->GetActiveCamera();
+                vtkCamera* camera = app->GetRenderer()->GetActiveCamera();
 
                 double focal[3] = { pos[0], pos[1], pos[2] };
                 double position[3];
-
-                // 현재 카메라의 시선 방향을 유지한 채 focal point만 이동
                 double direction[3];
                 camera->GetDirectionOfProjection(direction);
-                double dist = std::sqrt(
-                    vtkMath::Distance2BetweenPoints(camera->GetPosition(), camera->GetFocalPoint()));
+                double dist = std::sqrt(vtkMath::Distance2BetweenPoints(camera->GetPosition(), camera->GetFocalPoint()));
 
-                // 새로운 position = focal - direction * 거리
                 for (int i = 0; i < 3; ++i)
                     position[i] = focal[i] - direction[i] * dist;
 
                 camera->SetFocalPoint(focal);
                 camera->SetPosition(position);
 
-                // 필요 시 up-vector 재설정
-                // camera->SetViewUp(0, 1, 0);
-
-                renderer->ResetCameraClippingRange(); // 클리핑 거리 보정
-                renderer->GetRenderWindow()->Render(); // 즉시 렌더링
+                app->GetRenderer()->ResetCameraClippingRange();
+                app->GetRenderer()->GetRenderWindow()->Render();
             }
         }
     }
@@ -72,21 +66,51 @@ KeyPressCallback* KeyPressCallback::New()
 void KeyPressCallback::Execute(vtkObject* caller, unsigned long eventId, void* callData)
 {
     auto interactor = static_cast<vtkRenderWindowInteractor*>(caller);
-    std::string key = interactor->GetKeySym(); // 눌린 키의 이름 (예: "r", "Escape", "Up", "Down")
+    std::string key = interactor->GetKeySym();
 
     std::cout << "[KEY] Pressed: " << key << std::endl;
 
-    // 예: 특정 키에 대해 동작 수행
-    if (key == "r") {
-        std::cout << "R 키가 눌렸습니다. 카메라 리셋" << std::endl;
-        if (renderer) {
-            renderer->ResetCamera();
-            renderer->GetRenderWindow()->Render();
-        }
-    }
-    else if (key == "Escape") {
+    if (key == "Escape")
+    {
         std::cout << "종료" << std::endl;
         interactor->GetRenderWindow()->Finalize();
         interactor->TerminateApp();
+    }
+    else if (key == "r")
+    {
+        std::cout << "R 키가 눌렸습니다. 카메라 리셋" << std::endl;
+        if (app->GetRenderer())
+        {
+            app->GetRenderer()->ResetCamera();
+            app->GetRenderer()->GetRenderWindow()->Render();
+        }
+    }
+    else if (key == "equal")
+    {
+        vtkActorCollection* actors = app->GetRenderer()->GetActors();
+        vtkCollectionSimpleIterator it;
+        actors->InitTraversal(it);
+        while (vtkActor* actor = actors->GetNextActor(it))
+        {
+            auto pointSize = actor->GetProperty()->GetPointSize() + 1;
+            actor->GetProperty()->SetPointSize(pointSize);
+        }
+
+        app->GetRenderWindow()->Render();
+    }
+    else if (key == "minus")
+    {
+        vtkActorCollection* actors = app->GetRenderer()->GetActors();
+        vtkCollectionSimpleIterator it;
+        actors->InitTraversal(it);
+        while (vtkActor* actor = actors->GetNextActor(it))
+        {
+            auto pointSize = actor->GetProperty()->GetPointSize() - 1;
+            if (pointSize == 0) pointSize = 1;
+
+            actor->GetProperty()->SetPointSize(pointSize);
+        }
+
+        app->GetRenderWindow()->Render();
     }
 }
