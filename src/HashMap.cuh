@@ -26,7 +26,8 @@ struct HashMapVoxel
     Eigen::Vector3f position = Eigen::Vector3f(0.0f, 0.0f, 0.0f);
     Eigen::Vector3f normal = Eigen::Vector3f(0.0f, 0.0f, 0.0f);
     Eigen::Vector3b color = Eigen::Vector3b(255, 255, 255);
-    float divergence;
+    float divergence = 0.0f;
+    unsigned int neighborCount = 0;
 };
 
 struct PointCloudBuffers

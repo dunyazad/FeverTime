@@ -104,6 +104,135 @@ bool PointCloud::LoadFromALP(const std::string& filename)
 	return true;
 }
 
+__global__ void Kernel_ComputeNeighborCount(HashMapInfo info)
+{
+	unsigned int threadid = blockDim.x * blockIdx.x + threadIdx.x;
+	if (threadid >= *info.d_numberOfOccupiedVoxels) return;
+
+	int3 coord = info.d_occupiedVoxelIndices[threadid];
+	size_t slot = GetVoxelSlot(info, coord);
+	if (slot == UINT64_MAX) return;
+
+	HashMapVoxel* centerVoxel = GetVoxel(info, slot);
+	if (centerVoxel == nullptr || centerVoxel->label == 0) return;
+
+	const int3 offsets[26] =
+	{
+		{1,0,0}, {-1,0,0}, {0,1,0}, {0,-1,0}, {0,0,1}, {0,0,-1},
+		{1,1,0}, {1,-1,0}, {-1,1,0}, {-1,-1,0},
+		{1,0,1}, {1,0,-1}, {-1,0,1}, {-1,0,-1},
+		{0,1,1}, {0,1,-1}, {0,-1,1}, {0,-1,-1},
+		{1,1,1}, {1,1,-1}, {1,-1,1}, {1,-1,-1},
+		{-1,1,1}, {-1,1,-1}, {-1,-1,1}, {-1,-1,-1}
+	};
+
+#pragma unroll
+	for (int ni = 0; ni < 26; ++ni)
+	{
+		int3 neighborCoord = make_int3(
+			coord.x + offsets[ni].x,
+			coord.y + offsets[ni].y,
+			coord.z + offsets[ni].z);
+
+		size_t neighborSlot = GetVoxelSlot(info, neighborCoord);
+		HashMapVoxel* neighborVoxel = GetVoxel(info, neighborSlot);
+
+		//if (neighborVoxel && neighborVoxel->label != 0)
+		//{
+		//	centerVoxel->neighborCount++;
+		//}
+
+		if (neighborVoxel == nullptr || neighborVoxel->label == 0)
+		{
+			centerVoxel->neighborCount++;
+		}
+	}
+}
+
+void PointCloud::ComputeNeighborCount()
+{
+	nvtxRangePushA("Clustering");
+
+	unsigned int numberOfOccupiedVoxels = 0;
+	cudaMemcpy(&numberOfOccupiedVoxels, hashmap.info.d_numberOfOccupiedVoxels, sizeof(unsigned int), cudaMemcpyDeviceToHost);
+
+	vector<unsigned int> labels;
+
+	unsigned int blockSize = 256;
+	unsigned int gridOccupied = (numberOfOccupiedVoxels + blockSize - 1) / blockSize;
+
+	Kernel_ComputeNeighborCount << <gridOccupied, blockSize >> > (hashmap.info);
+
+	cudaDeviceSynchronize();
+}
+
+__global__ void Kernel_SerializeColoringByNeighborCount(HashMapInfo info, PointCloudBuffers buffers)
+{
+	int idx = blockIdx.x * blockDim.x + threadIdx.x;
+	if (idx >= buffers.numberOfPoints) return;
+
+	auto& p = buffers.positions[idx];
+	int3 coord = make_int3(floorf(p.x() / info.voxelSize), floorf(p.y() / info.voxelSize), floorf(p.z() / info.voxelSize));
+	size_t slot = GetVoxelSlot(info, coord);
+	HashMapVoxel* voxel = GetVoxel(info, slot);
+	if (voxel == nullptr || voxel->label == 0) return;
+
+	buffers.positions[idx] = voxel->position;
+	buffers.normals[idx] = voxel->normal;
+
+	//const Eigen::Vector3b COLORS[26] = {
+	//{255, 0, 0},
+	//{233, 0, 21},
+	//{212, 0, 42},
+	//{191, 0, 63},
+	//{170, 0, 85},
+	//{148, 0, 106},
+	//{127, 0, 127},
+	//{106, 0, 148},
+	//{85, 0, 170},
+	//{63, 0, 191},
+	//{42, 0, 212},
+	//{21, 0, 233},
+	//{0, 0, 255},
+	//{0, 21, 233},
+	//{0, 42, 212},
+	//{0, 63, 191},
+	//{0, 85, 170},
+	//{0, 106, 148},
+	//{0, 127, 127},
+	//{0, 148, 106},
+	//{0, 170, 85},
+	//{0, 191, 63},
+	//{0, 212, 42},
+	//{0, 233, 21},
+	//{0, 255, 0},
+	//{0, 255, 0}  // 마지막 중복은 종료 강조용 (선택사항)
+	//};
+
+	//buffers.colors[idx] = COLORS[25 - voxel->neighborCount];
+
+	if (19 <= voxel->neighborCount && voxel->neighborCount <= 25)
+	{
+		buffers.colors[idx] = Eigen::Vector3b(255, 0, 0);
+	}
+	else
+	{
+		buffers.colors[idx] = Eigen::Vector3b(100, 100, 100);
+	}
+}
+
+void PointCloud::SerializeColoringByNeighborCount(PointCloudBuffers& d_tempBuffers)
+{
+	d_buffers.CopyTo(d_tempBuffers);
+
+	unsigned int blockSize = 256;
+	unsigned int gridOccupied = (d_buffers.numberOfPoints + blockSize - 1) / blockSize;
+
+	Kernel_SerializeColoringByNeighborCount << <gridOccupied, blockSize >> > (hashmap.info, d_tempBuffers);
+
+	cudaDeviceSynchronize();
+}
+
 __device__ __forceinline__ unsigned int FindRootVoxel(HashMapInfo info, unsigned int idx)
 {
 	while (info.d_hashTable[idx].label != idx)
@@ -134,7 +263,7 @@ __device__ __forceinline__ void UnionVoxel(HashMapInfo info, unsigned int a, uns
 	//auto cuA = voxelA.divergence;
 	//auto cuB = voxelB.divergence;
 
-	const float minDot = 0.425f;
+	const float minDot = 0.67f;
 	//const float minDot = 0.1f;
 	if (nA.dot(nB) < minDot) return;
 
@@ -166,64 +295,37 @@ __global__ void Kernel_InterVoxelHashMerge26Way(HashMapInfo info)
 	if (threadid >= *info.d_numberOfOccupiedVoxels) return;
 
 	int3 coord = info.d_occupiedVoxelIndices[threadid];
-	size_t h = voxel_hash(coord, info.capacity);
+	size_t slot = GetVoxelSlot(info, coord);
+	if (slot == UINT64_MAX) return;
 
-	// Linear probing to find the voxel in the hash table
-	for (int i = 0; i < info.maxProbe; ++i)
+	HashMapVoxel* centerVoxel = GetVoxel(info, slot);
+	if (centerVoxel == nullptr || centerVoxel->label == 0) return;
+
+	const int3 offsets[26] =
 	{
-		size_t probe = (h + i) % info.capacity;
-		auto& entry = info.d_hashTable[probe];
-
-		if (entry.coord.x == coord.x &&
-			entry.coord.y == coord.y &&
-			entry.coord.z == coord.z)
-		{
-			if (entry.label == 0) return; // This should never happen unless corrupted
-
-			const int3 offsets[26] =
-			{
-				{1,0,0}, {-1,0,0}, {0,1,0}, {0,-1,0}, {0,0,1}, {0,0,-1},
-				{1,1,0}, {1,-1,0}, {-1,1,0}, {-1,-1,0},
-				{1,0,1}, {1,0,-1}, {-1,0,1}, {-1,0,-1},
-				{0,1,1}, {0,1,-1}, {0,-1,1}, {0,-1,-1},
-				{1,1,1}, {1,1,-1}, {1,-1,1}, {1,-1,-1},
-				{-1,1,1}, {-1,1,-1}, {-1,-1,1}, {-1,-1,-1}
-			};
+		{1,0,0}, {-1,0,0}, {0,1,0}, {0,-1,0}, {0,0,1}, {0,0,-1},
+		{1,1,0}, {1,-1,0}, {-1,1,0}, {-1,-1,0},
+		{1,0,1}, {1,0,-1}, {-1,0,1}, {-1,0,-1},
+		{0,1,1}, {0,1,-1}, {0,-1,1}, {0,-1,-1},
+		{1,1,1}, {1,1,-1}, {1,-1,1}, {1,-1,-1},
+		{-1,1,1}, {-1,1,-1}, {-1,-1,1}, {-1,-1,-1}
+	};
 
 #pragma unroll
-			for (int ni = 0; ni < 26; ++ni)
-			{
-				int3 neighborCoord = make_int3(
-					coord.x + offsets[ni].x,
-					coord.y + offsets[ni].y,
-					coord.z + offsets[ni].z);
+	for (int ni = 0; ni < 26; ++ni)
+	{
+		int3 neighborCoord = make_int3(
+			coord.x + offsets[ni].x,
+			coord.y + offsets[ni].y,
+			coord.z + offsets[ni].z);
 
-				size_t nh = voxel_hash(neighborCoord, info.capacity);
+		size_t neighborSlot = GetVoxelSlot(info, neighborCoord);
+		HashMapVoxel* neighborVoxel = GetVoxel(info, neighborSlot);
 
-				for (int j = 0; j < info.maxProbe; ++j)
-				{
-					size_t nprobe = (nh + j) % info.capacity;
-					auto& neighbor = info.d_hashTable[nprobe];
-
-					if (neighbor.label == 0)
-						break;  // Stop probing if slot is empty (assuming no tombstones)
-
-					if (neighbor.coord.x == neighborCoord.x &&
-						neighbor.coord.y == neighborCoord.y &&
-						neighbor.coord.z == neighborCoord.z)
-					{
-						UnionVoxel(info, probe, nprobe);
-						break;
-					}
-				}
-			}
-
-			break;  // Stop probing once the original voxel is found
+		if (neighborVoxel && neighborVoxel->label != 0)
+		{
+			UnionVoxel(info, slot, neighborSlot);
 		}
-
-		// Optional: break early if we hit an empty slot (assumes no deletion holes)
-		if (entry.label == 0)
-			break;
 	}
 }
 
@@ -279,6 +381,8 @@ __global__ void Kernel_GetLabels(HashMapInfo info, Eigen::Vector3f* points, unsi
 
 vector<unsigned int> PointCloud::Clustering()
 {
+	nvtxRangePushA("Clustering");
+
 	unsigned int numberOfOccupiedVoxels = 0;
 	cudaMemcpy(&numberOfOccupiedVoxels, hashmap.info.d_numberOfOccupiedVoxels, sizeof(unsigned int), cudaMemcpyDeviceToHost);
 
@@ -318,6 +422,8 @@ vector<unsigned int> PointCloud::Clustering()
 
 		cudaFree(d_labels);
 	}
+
+	nvtxRangePop();
 
 	return labels;
 }

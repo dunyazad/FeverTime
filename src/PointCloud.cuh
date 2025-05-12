@@ -29,6 +29,10 @@ public:
 	bool LoadFromPLY(const std::string& filename);
 	bool LoadFromALP(const std::string& filename);
 
+	void ComputeNeighborCount();
+
+	void SerializeColoringByNeighborCount(PointCloudBuffers& d_tempBuffers);
+
 	std::vector<unsigned int> Clustering();
 
 	void SerializeColoringByLabel(PointCloudBuffers& d_tempBuffers);

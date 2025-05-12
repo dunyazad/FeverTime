@@ -1,0 +1,162 @@
+#include "App.h"
+
+#include <main.cuh>
+
+PointCloud pointCloud;
+
+ALPFormat<PointPNC> alp;
+
+const string resource_file_name = "Compound";
+const string resource_file_name_ply = "../../res/3D/" + resource_file_name + ".ply";
+const string resource_file_name_alp = "../../res/3D/" + resource_file_name + ".alp";
+
+class DoubleClickPickerCallback : public vtkCommand
+{
+public:
+    static DoubleClickPickerCallback* New() {
+        return new DoubleClickPickerCallback;
+    }
+
+    void SetRenderer(vtkRenderer* ren) { this->Renderer = ren; }
+
+    void Execute(vtkObject* caller, unsigned long eventId, void* callData) override
+    {
+        auto interactor = static_cast<vtkRenderWindowInteractor*>(caller);
+        auto picker = static_cast<vtkPointPicker*>(interactor->GetPicker());
+
+        auto now = std::chrono::steady_clock::now();
+        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - lastClickTime).count();
+        lastClickTime = now;
+
+        if (elapsed > 50 && elapsed < 300) // 감지 기준: 50ms 이상, 300ms 이하
+        {
+            int x, y;
+            interactor->GetEventPosition(x, y);
+            if (picker->Pick(x, y, 0, this->Renderer))
+            {
+                /*
+                vtkIdType pid = picker->GetPointId();
+                double* pos = picker->GetPickPosition();
+
+                if (pid >= 0)
+                {
+                    std::cout << "[DOUBLE CLICK] Picked Point ID: " << pid << std::endl;
+                    std::cout << "Position: " << pos[0] << ", " << pos[1] << ", " << pos[2] << std::endl;
+                }
+                */
+
+                vtkIdType pid = picker->GetPointId();
+                double* pos = picker->GetPickPosition();
+
+                if (pid >= 0)
+                {
+                    vtkCamera* camera = this->Renderer->GetActiveCamera();
+
+                    double focal[3] = { pos[0], pos[1], pos[2] };
+                    double position[3];
+
+                    // 현재 카메라의 시선 방향을 유지한 채 focal point만 이동
+                    double direction[3];
+                    camera->GetDirectionOfProjection(direction);
+                    double dist = std::sqrt(
+                        vtkMath::Distance2BetweenPoints(camera->GetPosition(), camera->GetFocalPoint()));
+
+                    // 새로운 position = focal - direction * 거리
+                    for (int i = 0; i < 3; ++i)
+                        position[i] = focal[i] - direction[i] * dist;
+
+                    camera->SetFocalPoint(focal);
+                    camera->SetPosition(position);
+
+                    // 필요 시 up-vector 재설정
+                    // camera->SetViewUp(0, 1, 0);
+
+                    this->Renderer->ResetCameraClippingRange(); // 클리핑 거리 보정
+                    this->Renderer->GetRenderWindow()->Render(); // 즉시 렌더링
+                }
+            }
+        }
+    }
+
+private:
+    std::chrono::steady_clock::time_point lastClickTime = std::chrono::steady_clock::now();
+    vtkRenderer* Renderer = nullptr;
+};
+
+int main(int argc, char** argv)
+{
+    App app;
+    app.SetInitializeCallback([](App& app) {
+
+        vector<Eigen::Vector3f> csvPoints;
+
+        CSVFormat csv;
+        csv.Deserialize("../../res/data.csv");
+
+        PLYFormat ply;
+
+        for (size_t i = 0; i < csv.GetPoints().size() / 3; i++)
+        {
+            auto x = csv.GetPoints()[i * 3];
+            auto y = csv.GetPoints()[i * 3 + 1];
+            auto z = csv.GetPoints()[i * 3 + 2];
+
+            ply.AddPoint(x, y, z);
+            csvPoints.push_back(Eigen::Vector3f(x, y, z));
+        }
+
+        ply.Serialize("../../res/data.ply");
+
+        vtkSmartPointer<vtkPoints> points = vtkSmartPointer<vtkPoints>::New();
+        vtkSmartPointer<vtkUnsignedCharArray> colors = vtkSmartPointer<vtkUnsignedCharArray>::New();
+        vtkSmartPointer<vtkFloatArray> normals = vtkSmartPointer<vtkFloatArray>::New();
+
+        for (size_t i = 0; i < csvPoints.size(); i++)
+        {
+            auto& p = csvPoints[i];
+            
+            points->InsertNextPoint(p.x(), p.y(), p.z());
+        }
+
+        auto vertices = vtkSmartPointer<vtkCellArray>::New();
+        for (vtkIdType i = 0; i < csvPoints.size(); ++i)
+        {
+            vtkIdType pid = i;
+            vertices->InsertNextCell(1, &pid);
+        }
+
+        auto polyData = vtkSmartPointer<vtkPolyData>::New();
+        polyData->SetPoints(points);
+        polyData->SetVerts(vertices);
+
+        auto mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+        mapper->SetInputData(polyData);
+        mapper->SetScalarModeToUsePointData();
+        mapper->SetColorModeToDirectScalars();
+        mapper->SetScalarVisibility(true);
+
+        auto actor = vtkSmartPointer<vtkActor>::New();
+        actor->SetMapper(mapper);
+        actor->GetProperty()->SetPointSize(2);
+        actor->GetProperty()->SetRepresentationToPoints();
+
+        auto picker = vtkSmartPointer<vtkPointPicker>::New();
+        app.GetInteractor()->SetPicker(picker);
+
+        auto callback = vtkSmartPointer<DoubleClickPickerCallback>::New();
+        callback->SetRenderer(app.GetRenderer());
+
+        app.GetInteractor()->AddObserver(vtkCommand::LeftButtonPressEvent, callback);
+
+        app.GetRenderer()->AddActor(actor);
+        app.GetRenderer()->SetBackground(0.3, 0.5, 0.7);
+
+        app.GetRenderWindow()->SetSize(800, 600);
+
+        });
+
+    app.Initialize();
+    app.Run();
+
+    return EXIT_SUCCESS;
+}

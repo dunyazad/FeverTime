@@ -85,6 +85,19 @@ void KeyPressCallback::Execute(vtkObject* caller, unsigned long eventId, void* c
             app->GetRenderer()->GetRenderWindow()->Render();
         }
     }
+    else if (key == "grave")
+    {
+        vtkActorCollection* actors = app->GetRenderer()->GetActors();
+        vtkCollectionSimpleIterator it;
+        actors->InitTraversal(it);
+        while (vtkActor* actor = actors->GetNextActor(it))
+        {
+            bool lighting = actor->GetProperty()->GetLighting();
+            actor->GetProperty()->SetLighting(!lighting);
+        }
+
+        app->GetRenderWindow()->Render();
+    }
     else if (key == "equal")
     {
         vtkActorCollection* actors = app->GetRenderer()->GetActors();
