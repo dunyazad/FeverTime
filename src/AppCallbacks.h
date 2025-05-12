@@ -30,4 +30,8 @@ public:
     static KeyPressCallback* New();
 
     void Execute(vtkObject* caller, unsigned long eventId, void* callData) override;
+
+    vtkSmartPointer<vtkActor> pointCloudActor;
+    vtkSmartPointer<vtkActor> pointCloudNormalActor;
+    vtkSmartPointer<vtkActor> pointCloudClusteringActor;
 };

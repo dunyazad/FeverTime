@@ -1,5 +1,7 @@
 #pragma once
 
+#include <float.h>
+
 #include <algorithm>
 #include <chrono>
 #include <iostream>

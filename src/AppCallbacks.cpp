@@ -113,4 +113,17 @@ void KeyPressCallback::Execute(vtkObject* caller, unsigned long eventId, void* c
 
         app->GetRenderWindow()->Render();
     }
+    else if (key == "Tab")
+    {
+        std::cout << "Tab 키가 눌렸습니다." << std::endl;
+        pointCloudNormalActor->SetVisibility(!pointCloudNormalActor->GetVisibility());
+        app->GetRenderer()->GetRenderWindow()->Render();
+    }
+    else if (key == "space")
+    {
+        std::cout << "Space 키가 눌렸습니다." << std::endl;
+        pointCloudActor->SetVisibility(!pointCloudActor->GetVisibility());
+        pointCloudClusteringActor->SetVisibility(!pointCloudActor->GetVisibility());
+        app->GetRenderer()->GetRenderWindow()->Render();
+    }
 }
