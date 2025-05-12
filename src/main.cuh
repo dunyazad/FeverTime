@@ -10,6 +10,8 @@ namespace Eigen {
 #define alog(...) printf("\033[38;5;1m\033[48;5;15m(^(OO)^) /V/\033[0m\t" __VA_ARGS__)
 #define alogt(tag, ...) printf("\033[38;5;1m\033[48;5;15m [%d] (^(OO)^) /V/\033[0m\t" tag, __VA_ARGS__)
 
+#define CUDART_PI_F 3.1415927f
+
 struct HashMapVoxel
 {
     int3 coord = make_int3(0, 0, 0);
@@ -71,6 +73,7 @@ struct HashMap
     void InsertDPoints(Device_PointCloud pointCloud);
 
     void ComputeNormalDivergence();
+    void ComputeCurvatureFromCovariance();
 
     void SerializeToPLY(const std::string& filename);
     void SerializeColoringByLabel(const std::string& filename);

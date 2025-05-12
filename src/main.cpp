@@ -102,7 +102,7 @@ int main(int argc, char** argv)
 
         hm.InsertHPoints(pointCloud);
 
-        //hm.ComputeNormalDivergence();
+        hm.ComputeNormalDivergence();
 
         auto labels = hm.Clustering(pointCloud);
 
@@ -145,6 +145,13 @@ int main(int argc, char** argv)
             };
 
             unsigned char color[4];
+
+            //color[0] = c.x();
+            //color[1] = c.y();
+            //color[2] = c.z();
+            //color[3] = 255;
+            //colors->InsertNextTypedTuple(color);
+
             auto label = labels[i];
             if (0 != label)
             {
