@@ -33,6 +33,8 @@ public:
 
 	void SerializeColoringByLabel(PointCloudBuffers& d_tempBuffers);
 
+	void SplitByNormal(PointCloudBuffers& d_tempBuffers);
+
 	inline unsigned int GetNumberOfPoints() const { return h_buffers.numberOfPoints; }
 	inline PointCloudBuffers& GetHostBuffers() { return h_buffers; };
 	inline const PointCloudBuffers& GetHostBuffers() const { return h_buffers; };

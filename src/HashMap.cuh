@@ -43,7 +43,7 @@ struct PointCloudBuffers
     bool isHostBuffer = true;
 
     void Initialize(unsigned int numberOfPoints, bool isHostBuffer);
-    void Terminate(bool isHostBuffer);
+    void Terminate();
 
     void CopyTo(PointCloudBuffers& other);
 };
@@ -105,3 +105,6 @@ struct HashMap
 
 __device__ __host__ float hashToFloat(uint32_t seed);
 __device__ __host__ size_t voxel_hash(int3 coord, size_t tableSize);
+
+__device__ size_t GetVoxelSlot(HashMapInfo& info, int3 coord);
+__device__ HashMapVoxel* GetVoxel(HashMapInfo& info, size_t slot);

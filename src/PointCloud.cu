@@ -20,8 +20,8 @@ void PointCloud::Initialize(unsigned int numberOfPoints)
 
 void PointCloud::Terminate()
 {
-	h_buffers.Terminate(true);
-	d_buffers.Terminate(false);
+	h_buffers.Terminate();
+	d_buffers.Terminate();
 
 	hashmap.Terminate();
 }
@@ -357,6 +357,52 @@ __global__ void Kernel_SerializeColoringByLabel(HashMapInfo info, PointCloudBuff
 }
 
 void PointCloud::SerializeColoringByLabel(PointCloudBuffers& d_tempBuffers)
+{
+	d_buffers.CopyTo(d_tempBuffers);
+
+	unsigned int blockSize = 256;
+	unsigned int gridOccupied = (d_buffers.numberOfPoints + blockSize - 1) / blockSize;
+
+	Kernel_SerializeColoringByLabel << <gridOccupied, blockSize >> > (hashmap.info, d_tempBuffers);
+
+	cudaDeviceSynchronize();
+}
+
+__global__ void Kernel_SplitByNormal(HashMapInfo info, PointCloudBuffers buffers)
+{
+	int idx = blockIdx.x * blockDim.x + threadIdx.x;
+	if (idx >= buffers.numberOfPoints) return;
+
+	auto& p = buffers.positions[idx];
+	int3 coord = make_int3(floorf(p.x() / info.voxelSize), floorf(p.y() / info.voxelSize), floorf(p.z() / info.voxelSize));
+	size_t h = voxel_hash(coord, info.capacity);
+
+	for (unsigned int i = 0; i < info.maxProbe; ++i)
+	{
+		size_t slot = (h + i) % info.capacity;
+		auto& voxel = info.d_hashTable[slot];
+
+		if (0 == voxel.label) return;
+
+		if (voxel.coord.x == coord.x &&
+			voxel.coord.y == coord.y &&
+			voxel.coord.z == coord.z)
+		{
+			buffers.positions[idx] = voxel.position;
+			buffers.normals[idx] = voxel.normal;
+
+			float r = hashToFloat(voxel.label * 3 + 0);
+			float g = hashToFloat(voxel.label * 3 + 1);
+			float b = hashToFloat(voxel.label * 3 + 2);
+
+			buffers.colors[idx] = Eigen::Vector3b(r * 255.0f, g * 255.0f, b * 255.0f);
+
+			return;
+		}
+	}
+}
+
+void PointCloud::SplitByNormal(PointCloudBuffers& d_tempBuffers)
 {
 	d_buffers.CopyTo(d_tempBuffers);
 

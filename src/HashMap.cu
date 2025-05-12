@@ -20,7 +20,7 @@ void PointCloudBuffers::Initialize(unsigned int numberOfPoints, bool isHostBuffe
 	}
 }
 
-void PointCloudBuffers::Terminate(bool isHostBuffer)
+void PointCloudBuffers::Terminate()
 {
 	if (isHostBuffer)
 	{
@@ -143,6 +143,29 @@ __device__ __host__ size_t voxel_hash(int3 coord, size_t tableSize)
     return ((size_t)(coord.x * 73856093) ^ (coord.y * 19349663) ^ (coord.z * 83492791)) % tableSize;
 }
 
+__device__ size_t GetVoxelSlot(HashMapInfo& info, int3 coord)
+{
+	size_t h = voxel_hash(coord, info.capacity);
+	for (int i = 0; i < info.maxProbe; ++i) {
+		size_t slot = (h + i) % info.capacity;
+
+		if (info.d_hashTable[slot].coord.x == coord.x &&
+			info.d_hashTable[slot].coord.y == coord.y &&
+			info.d_hashTable[slot].coord.z == coord.z)
+		{
+			return slot;
+		}
+	}
+
+	return UINT64_MAX;
+}
+
+__device__ HashMapVoxel* GetVoxel(HashMapInfo& info, size_t slot)
+{
+	if (UINT64_MAX == slot) return nullptr;
+	return &(info.d_hashTable[slot]);
+}
+
 __global__ void Kernel_InsertPoints(HashMapInfo info, PointCloudBuffers buffers)
 {
 	int idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -256,6 +279,6 @@ void HashMap::SerializeToPLY(const std::string& filename)
 
 	ply.Serialize(filename);
 
-	d_buffers.Terminate(false);
-	h_buffers.Terminate(true);
+	d_buffers.Terminate();
+	h_buffers.Terminate();
 }
