@@ -30,12 +30,13 @@ public:
 	bool LoadFromALP(const std::string& filename);
 
 	void ComputeNeighborCount();
-
 	void SerializeColoringByNeighborCount(PointCloudBuffers& d_tempBuffers);
 
 	void ComputeNormalGradient();
-
 	void SerializeColoringByNormalGradient(float threshold, PointCloudBuffers& d_tempBuffers);
+
+	void ComputeNormalDivergence();
+	void SerializeColoringByNormalDivergence(float threshold, PointCloudBuffers& d_tempBuffers);
 
 	std::vector<unsigned int> Clustering();
 

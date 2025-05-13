@@ -72,9 +72,6 @@ struct HashMap
 
     void InsertPoints(PointCloudBuffers buffers);
 
-    void ComputeNormalDivergence();
-    void ComputeCurvatureFromCovariance();
-
     void SerializeToPLY(const std::string& filename);
 };
 
