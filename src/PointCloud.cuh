@@ -38,6 +38,9 @@ public:
 	void ComputeNormalDivergence();
 	void SerializeColoringByNormalDivergence(float threshold, PointCloudBuffers& d_tempBuffers);
 
+	void ComputeColorMultiplication();
+	void SerializeColoringByColorMultiplication(float threshold, PointCloudBuffers& d_tempBuffers);
+
 	std::vector<unsigned int> Clustering();
 
 	void SerializeColoringByLabel(PointCloudBuffers& d_tempBuffers);
