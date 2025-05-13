@@ -27,7 +27,10 @@ struct HashMapVoxel
     Eigen::Vector3f normal = Eigen::Vector3f(0.0f, 0.0f, 0.0f);
     Eigen::Vector3b color = Eigen::Vector3b(255, 255, 255);
     float divergence = 0.0f;
+    unsigned int pointCount = 0;
     unsigned int neighborCount = 0;
+    Eigen::Vector3f gradient = Eigen::Vector3f(0.0f, 0.0f, 0.0f);
+    float colorDistance = 0.0f;
 };
 
 struct PointCloudBuffers
@@ -49,28 +52,6 @@ struct PointCloudBuffers
     void CopyTo(PointCloudBuffers& other);
 };
 
-//struct Host_PointCloud
-//{
-//    Eigen::Vector3f* points = nullptr;
-//    Eigen::Vector3f* normals = nullptr;
-//    Eigen::Vector3b* colors = nullptr;
-//    unsigned int numberOfPoints = 0;
-//
-//    void Initialize(unsigned int numberOfPoints);
-//    void Terminate();
-//};
-//
-//struct Device_PointCloud
-//{
-//    Eigen::Vector3f* points = nullptr;
-//    Eigen::Vector3f* normals = nullptr;
-//    Eigen::Vector3b* colors = nullptr;
-//    unsigned int numberOfPoints = 0;
-//
-//    void Initialize(unsigned int numberOfPoints);
-//    void Terminate();
-//};
-
 struct HashMapInfo
 {
     size_t capacity = 1024 * 1024 * 100;
@@ -91,17 +72,10 @@ struct HashMap
 
     void InsertPoints(PointCloudBuffers buffers);
 
-    //void InsertHPoints(Host_PointCloud pointCloud);
-    //void InsertDPoints(Device_PointCloud pointCloud);
-
     void ComputeNormalDivergence();
     void ComputeCurvatureFromCovariance();
 
     void SerializeToPLY(const std::string& filename);
-    //void SerializeColoringByLabel(const std::string& filename);
-    //void SerializeColoringByDivergence(const std::string& filename);
-
-    //std::vector<unsigned int> Clustering(Host_PointCloud pointCloud);
 };
 
 __device__ __host__ float hashToFloat(uint32_t seed);

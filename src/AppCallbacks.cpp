@@ -1,6 +1,8 @@
 #include <AppCallbacks.h>
 #include <App.h>
 
+#include <PointCloud.cuh>
+
 DoubleClickPickerCallback* DoubleClickPickerCallback::New()
 {
     return new DoubleClickPickerCallback;
@@ -21,17 +23,6 @@ void DoubleClickPickerCallback::Execute(vtkObject* caller, unsigned long eventId
         interactor->GetEventPosition(x, y);
         if (picker->Pick(x, y, 0, app->GetRenderer()))
         {
-            /*
-            vtkIdType pid = picker->GetPointId();
-            double* pos = picker->GetPickPosition();
-
-            if (pid >= 0)
-            {
-                std::cout << "[DOUBLE CLICK] Picked Point ID: " << pid << std::endl;
-                std::cout << "Position: " << pos[0] << ", " << pos[1] << ", " << pos[2] << std::endl;
-            }
-            */
-
             vtkIdType pid = picker->GetPointId();
             double* pos = picker->GetPickPosition();
 
@@ -68,7 +59,7 @@ void KeyPressCallback::Execute(vtkObject* caller, unsigned long eventId, void* c
     auto interactor = static_cast<vtkRenderWindowInteractor*>(caller);
     std::string key = interactor->GetKeySym();
 
-    //std::cout << "[KEY] Pressed: " << key << std::endl;
+    std::cout << "[KEY] Pressed: " << key << std::endl;
 
     if (key == "Escape")
     {
@@ -137,6 +128,104 @@ void KeyPressCallback::Execute(vtkObject* caller, unsigned long eventId, void* c
         std::cout << "Space 키가 눌렸습니다." << std::endl;
         pointCloudActor->SetVisibility(!pointCloudActor->GetVisibility());
         pointCloudClusteringActor->SetVisibility(!pointCloudActor->GetVisibility());
+        app->GetRenderer()->GetRenderWindow()->Render();
+    }
+    else if (key == "Prior")
+    {
+        normalGradientThreshold += 0.005f;
+        printf("ormalGradientThreshold : %f\n", normalGradientThreshold);
+
+        { // Normal Gradient
+            pointCloud->ComputeNormalGradient();
+
+            PointCloudBuffers d_tempBuffers;
+            d_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), false);
+
+            pointCloud->SerializeColoringByNormalGradient(normalGradientThreshold, d_tempBuffers);
+
+            PointCloudBuffers h_tempBuffers;
+            h_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), true);
+
+            d_tempBuffers.CopyTo(h_tempBuffers);
+
+            vtkSmartPointer<vtkUnsignedCharArray> clusteringColors = vtkSmartPointer<vtkUnsignedCharArray>::New();
+            clusteringColors->SetNumberOfComponents(4);
+            clusteringColors->SetName("Colors");
+
+            auto vertices = vtkSmartPointer<vtkCellArray>::New();
+            for (vtkIdType i = 0; i < h_tempBuffers.numberOfPoints; ++i)
+            {
+                vtkIdType pid = i;
+                vertices->InsertNextCell(1, &pid);
+
+                unsigned char color[4] = {
+                    h_tempBuffers.colors[i].x(),
+                    h_tempBuffers.colors[i].y(),
+                    h_tempBuffers.colors[i].z(),
+                    255 };
+                clusteringColors->InsertNextTypedTuple(color);
+            }
+
+            vtkSmartPointer<vtkPolyData> polyData =
+                vtkPolyData::SafeDownCast(
+                    vtkPolyDataMapper::SafeDownCast(pointCloudClusteringActor->GetMapper())->GetInput()
+                );
+
+            polyData->GetPointData()->SetScalars(clusteringColors);
+
+            d_tempBuffers.Terminate();
+            h_tempBuffers.Terminate();
+        }
+
+        app->GetRenderer()->GetRenderWindow()->Render();
+    }
+    else if (key == "Next")
+    {
+        normalGradientThreshold -= 0.005f;
+        printf("ormalGradientThreshold : %f\n", normalGradientThreshold);
+
+        { // Normal Gradient
+            pointCloud->ComputeNormalGradient();
+
+            PointCloudBuffers d_tempBuffers;
+            d_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), false);
+
+            pointCloud->SerializeColoringByNormalGradient(normalGradientThreshold, d_tempBuffers);
+
+            PointCloudBuffers h_tempBuffers;
+            h_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), true);
+
+            d_tempBuffers.CopyTo(h_tempBuffers);
+
+            vtkSmartPointer<vtkUnsignedCharArray> clusteringColors = vtkSmartPointer<vtkUnsignedCharArray>::New();
+            clusteringColors->SetNumberOfComponents(4);
+            clusteringColors->SetName("Colors");
+
+            auto vertices = vtkSmartPointer<vtkCellArray>::New();
+            for (vtkIdType i = 0; i < h_tempBuffers.numberOfPoints; ++i)
+            {
+                vtkIdType pid = i;
+                vertices->InsertNextCell(1, &pid);
+
+                unsigned char color[4] = {
+                    h_tempBuffers.colors[i].x(),
+                    h_tempBuffers.colors[i].y(),
+                    h_tempBuffers.colors[i].z(),
+                    255 };
+                clusteringColors->InsertNextTypedTuple(color);
+            }
+
+            vtkSmartPointer<vtkPolyData> polyData =
+                vtkPolyData::SafeDownCast(
+                    vtkPolyDataMapper::SafeDownCast(pointCloudClusteringActor->GetMapper())->GetInput()
+                );
+
+            polyData->GetPointData()->SetScalars(clusteringColors);
+
+            d_tempBuffers.Terminate();
+            h_tempBuffers.Terminate();
+        }
+
         app->GetRenderer()->GetRenderWindow()->Render();
     }
 }

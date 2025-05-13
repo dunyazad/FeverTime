@@ -30,6 +30,7 @@ int main(int argc, char** argv)
         {
             auto keyCallback = vtkSmartPointer<KeyPressCallback>::New();
             keyCallback->SetApp(&app);
+            keyCallback->pointCloud = &pointCloud;
             keyCallback->pointCloudActor = pointCloudActor;
             keyCallback->pointCloudNormalActor = pointCloudNormalActor;
             keyCallback->pointCloudClusteringActor = pointCloudClusteringActor;
@@ -157,7 +158,66 @@ int main(int argc, char** argv)
             app.GetRenderer()->AddActor(pointCloudNormalActor);
         }
 
-        { // Compute Neighbor Count
+        // Normal Gradient
+        /*
+        {
+            pointCloud.ComputeNormalGradient();
+
+            PointCloudBuffers d_tempBuffers;
+            d_tempBuffers.Initialize(pointCloud.GetNumberOfPoints(), false);
+
+            pointCloud.SerializeColoringByNormalGradient(0.05f, d_tempBuffers);
+
+            PointCloudBuffers h_tempBuffers;
+            h_tempBuffers.Initialize(pointCloud.GetNumberOfPoints(), true);
+
+            d_tempBuffers.CopyTo(h_tempBuffers);
+
+            vtkSmartPointer<vtkUnsignedCharArray> clusteringColors = vtkSmartPointer<vtkUnsignedCharArray>::New();
+            clusteringColors->SetNumberOfComponents(4);
+            clusteringColors->SetName("Colors");
+
+            auto vertices = vtkSmartPointer<vtkCellArray>::New();
+            for (vtkIdType i = 0; i < h_tempBuffers.numberOfPoints; ++i)
+            {
+                vtkIdType pid = i;
+                vertices->InsertNextCell(1, &pid);
+
+                unsigned char color[4] = {
+                    h_tempBuffers.colors[i].x(),
+                    h_tempBuffers.colors[i].y(),
+                    h_tempBuffers.colors[i].z(),
+                    255 };
+                clusteringColors->InsertNextTypedTuple(color);
+            }
+
+            auto polyData = vtkSmartPointer<vtkPolyData>::New();
+            polyData->SetPoints(points);
+            polyData->SetVerts(vertices);
+            polyData->GetPointData()->SetScalars(clusteringColors);
+            polyData->GetPointData()->SetNormals(normals);
+
+            auto mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+            mapper->SetInputData(polyData);
+            mapper->SetScalarModeToUsePointData();
+            mapper->SetColorModeToDirectScalars();
+            mapper->SetScalarVisibility(true);
+
+            pointCloudClusteringActor->SetMapper(mapper);
+            pointCloudClusteringActor->GetProperty()->SetPointSize(2);
+            pointCloudClusteringActor->GetProperty()->SetRepresentationToPoints();
+            pointCloudClusteringActor->GetProperty()->SetLighting(false);
+
+            app.GetRenderer()->AddActor(pointCloudClusteringActor);
+
+            d_tempBuffers.Terminate();
+            h_tempBuffers.Terminate();
+        }
+        */
+
+        // Compute Neighbor Count
+        /*
+        {
             pointCloud.ComputeNeighborCount();
 
             PointCloudBuffers d_tempBuffers;
@@ -210,10 +270,11 @@ int main(int argc, char** argv)
             d_tempBuffers.Terminate();
             h_tempBuffers.Terminate();
         }
+        */
 
-        return;
-
-        { // Clustering
+        // Clustering
+        /*
+        {
             pointCloud.Clustering();
 
             PointCloudBuffers d_tempBuffers;
@@ -266,9 +327,11 @@ int main(int argc, char** argv)
             d_tempBuffers.Terminate();
             h_tempBuffers.Terminate();
         }
+        */
 
-        return;
-        { // Split
+        // Split
+        /*
+        {
             PointCloudBuffers d_tempBuffers;
             d_tempBuffers.Initialize(pointCloud.GetNumberOfPoints(), false);
 
@@ -319,6 +382,7 @@ int main(int argc, char** argv)
             d_tempBuffers.Terminate();
             h_tempBuffers.Terminate();
         }
+        */
     });
 
     app.Initialize();

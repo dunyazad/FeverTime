@@ -3,6 +3,7 @@
 #include <Common.h>
 
 class App;
+class PointCloud;
 
 class EventCallback : public vtkCommand
 {
@@ -31,7 +32,11 @@ public:
 
     void Execute(vtkObject* caller, unsigned long eventId, void* callData) override;
 
+    PointCloud* pointCloud;
+
     vtkSmartPointer<vtkActor> pointCloudActor;
     vtkSmartPointer<vtkActor> pointCloudNormalActor;
     vtkSmartPointer<vtkActor> pointCloudClusteringActor;
+
+    float normalGradientThreshold = 0.05f;
 };

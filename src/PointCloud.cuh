@@ -33,6 +33,10 @@ public:
 
 	void SerializeColoringByNeighborCount(PointCloudBuffers& d_tempBuffers);
 
+	void ComputeNormalGradient();
+
+	void SerializeColoringByNormalGradient(float threshold, PointCloudBuffers& d_tempBuffers);
+
 	std::vector<unsigned int> Clustering();
 
 	void SerializeColoringByLabel(PointCloudBuffers& d_tempBuffers);
