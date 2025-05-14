@@ -82,6 +82,9 @@ bool PointCloud::LoadFromALP(const std::string& filename)
 		return false;
 	}
 
+	//printf("min: %f, %f, %f\n", get<0>(alp.GetAABBMin()), get<1>(alp.GetAABBMin()), get<2>(alp.GetAABBMin()));
+	//printf("max: %f, %f, %f\n", get<0>(alp.GetAABBMax()), get<1>(alp.GetAABBMax()), get<2>(alp.GetAABBMax()));
+
 	Initialize(alp.GetPoints().size());
 
 	for (size_t i = 0; i < alp.GetPoints().size(); i++)

@@ -14,8 +14,11 @@ public:
 	void Clear();
 
 	void FromPointCloud(PointCloud* pointCloud);
+	void FromPointCloud(PointCloud* pointCloud, const Eigen::AlignedBox3f& roi);
 	void CopyFrom(Entity* other);
+	void CopyFrom(Entity* other, const Eigen::AlignedBox3f& roi);
 	void CopyTo(Entity* other);
+	void CopyTo(Entity* other, const Eigen::AlignedBox3f& roi);
 
 	void UpdateColorFromBuffer(const PointCloudBuffers& buffer);
 
@@ -37,6 +40,10 @@ public:
 	void DecreasePointSize();
 
 private:
+	Eigen::AlignedBox3f roi = Eigen::AlignedBox3f(
+		Eigen::Vector3f(-FLT_MAX, -FLT_MAX, -FLT_MAX),
+		Eigen::Vector3f(FLT_MAX, FLT_MAX, FLT_MAX));
+
 	vtkSmartPointer<vtkRenderer> renderer = nullptr;
 
 	vtkSmartPointer<vtkAssembly> assembly = vtkSmartPointer<vtkAssembly>::New();

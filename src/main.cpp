@@ -78,8 +78,27 @@ int main(int argc, char** argv)
             }
         }
 
+        //map<uint3, unsigned int> colorHistogram;
+        //for (size_t i = 0; i < pointCloud.GetNumberOfPoints(); i++)
+        //{
+        //    auto& c = pointCloud.GetHostBuffers().colors[i];
+        //    colorHistogram[make_uint3(c.x(), c.y(), c.z())]++;
+        //}
+
+        //for (auto& kvp : colorHistogram)
+        //{
+        //    //if (1 < kvp.second)
+        //    {
+        //        printf("[%3d, %3d, %3d] : %d\n", kvp.first.x, kvp.first.y, kvp.first.z, kvp.second);
+        //    }
+        //}
+
         auto defaultEntity = app.CreateEntity("Default");
-        defaultEntity->FromPointCloud(&pointCloud);
+        auto roi = Eigen::AlignedBox3f(Eigen::Vector3f(0.0f, -60.0f, -5.0f), Eigen::Vector3f(20.0f, -30.0f, 25.0f));
+        defaultEntity->FromPointCloud(&pointCloud, roi);
+
+        app.GetRenderer()->ResetCamera();
+        app.GetRenderWindow()->Render();
 
         {
             auto entity = app.CreateEntity("Normal Gradient");
@@ -167,6 +186,104 @@ int main(int argc, char** argv)
             entity->UpdateColorFromBuffer(h_tempBuffers); // Add this function in Entity
 
             d_tempBuffers.Terminate();
+            h_tempBuffers.Terminate();
+
+            entity->SetVisibility(false);
+        }
+
+        {
+            auto distance =
+                [&](const uint3& a, const uint3& b) {
+                return std::sqrt(
+                    static_cast<float>(a.x - b.x) * (a.x - b.x) +
+                    static_cast<float>(a.y - b.y) * (a.y - b.y) +
+                    static_cast<float>(a.z - b.z) * (a.z - b.z)
+                );
+            };
+
+            auto average =
+                [&](const std::vector<uint3>& points) -> uint3 {
+                if (points.empty()) return { 0, 0, 0 };
+                unsigned long long sx = 0, sy = 0, sz = 0;
+                for (const auto& p : points) {
+                    sx += p.x; sy += p.y; sz += p.z;
+                }
+                return {
+                    static_cast<unsigned int>(sx / points.size()),
+                    static_cast<unsigned int>(sy / points.size()),
+                    static_cast<unsigned int>(sz / points.size())
+                };
+            };
+
+            auto kmeans =
+                [&](const std::vector<uint3>& points, int K, int iterations,
+                    std::vector<int>& labels, std::vector<uint3>& centroids) {
+                        const int N = points.size();
+                        labels.resize(N);
+                        centroids.resize(K);
+
+                        // Initialize centroids randomly
+                        for (int k = 0; k < K; ++k)
+                            centroids[k] = points[rand() % N];
+
+                        for (int iter = 0; iter < iterations; ++iter) {
+                            // Assign points to the nearest centroid
+                            for (int i = 0; i < N; ++i) {
+                                float minDist = std::numeric_limits<float>::max();
+                                int bestCluster = 0;
+                                for (int k = 0; k < K; ++k) {
+                                    float d = distance(points[i], centroids[k]);
+                                    if (d < minDist) {
+                                        minDist = d;
+                                        bestCluster = k;
+                                    }
+                                }
+                                labels[i] = bestCluster;
+                            }
+
+                            // Recalculate centroids
+                            std::vector<std::vector<uint3>> clusters(K);
+                            for (int i = 0; i < N; ++i)
+                                clusters[labels[i]].push_back(points[i]);
+
+                            for (int k = 0; k < K; ++k)
+                                centroids[k] = average(clusters[k]);
+                        }
+            };
+
+            vector<uint3> inputColors;
+            for (size_t i = 0; i < pointCloud.GetNumberOfPoints(); i++)
+            {
+                auto c = pointCloud.GetHostBuffers().colors[i];
+                inputColors.push_back(make_uint3(c.x(), c.y(), c.z()));
+            }
+
+            vector<int> labels;
+            vector<uint3> centroids;
+            kmeans(inputColors, 2, 10, labels, centroids);
+
+
+            auto entity = app.CreateEntity("K-Means");
+            entity->CopyFrom(defaultEntity);
+
+            // 클러스터 색상 지정
+            std::vector<uint3> clusterColors = {
+                make_uint3(255, 0, 0),   // Cluster 0: Red
+                make_uint3(0, 255, 0),   // Cluster 1: Green
+            };
+
+            PointCloudBuffers h_tempBuffers;
+            h_tempBuffers.Initialize(pointCloud.GetNumberOfPoints(), true);
+
+            for (size_t i = 0; i < pointCloud.GetNumberOfPoints(); ++i) {
+                uint3 c = clusterColors[labels[i]];
+                h_tempBuffers.colors[i].x() = c.x;
+                h_tempBuffers.colors[i].y() = c.y;
+                h_tempBuffers.colors[i].z() = c.z;
+            }
+
+            entity->UpdateColorFromBuffer(h_tempBuffers);
+
             h_tempBuffers.Terminate();
 
             entity->SetVisibility(false);

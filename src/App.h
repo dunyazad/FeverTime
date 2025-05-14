@@ -32,18 +32,15 @@ public:
 	{
 		activeEntityIndex = index;
 		
-		printf("current activeEntityIndex : %d\n", activeEntityIndex);
-
 		for (size_t i = 0; i < entities.size(); i++)
 		{
 			if (activeEntityIndex != i)
 			{
-				printf("%s is Invisible\n", entityNameMapping[i].c_str());
 				entities[i]->SetVisibility(false);
 			}
 			else
 			{
-				printf("%s is Visible\n", entityNameMapping[i].c_str());
+				printf("Active Entity : %s\n", entityNameMapping[i].c_str());
 				entities[i]->SetVisibility(true);
 			}
 		}
