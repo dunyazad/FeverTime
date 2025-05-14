@@ -109,13 +109,13 @@ int main(int argc, char** argv)
             PointCloudBuffers d_tempBuffers;
             d_tempBuffers.Initialize(pointCloud.GetNumberOfPoints(), false);
 
-            pointCloud.SerializeColoringByNormalGradient(0.05f, d_tempBuffers);
+            pointCloud.SerializeColoringByNormalGradient(0.025f, d_tempBuffers);
 
             PointCloudBuffers h_tempBuffers;
             h_tempBuffers.Initialize(pointCloud.GetNumberOfPoints(), true);
             d_tempBuffers.CopyTo(h_tempBuffers);
 
-            entity->UpdateColorFromBuffer(h_tempBuffers); // Add this function in Entity
+            entity->UpdateColorFromBuffer(h_tempBuffers);
 
             d_tempBuffers.Terminate();
             h_tempBuffers.Terminate();

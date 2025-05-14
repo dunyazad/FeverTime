@@ -59,7 +59,7 @@ void KeyPressCallback::Execute(vtkObject* caller, unsigned long eventId, void* c
     auto interactor = static_cast<vtkRenderWindowInteractor*>(caller);
     std::string key = interactor->GetKeySym();
 
-    //std::cout << "[KEY] Pressed: " << key << std::endl;
+    std::cout << "[KEY] Pressed: " << key << std::endl;
 
     if (key == "Escape")
     {

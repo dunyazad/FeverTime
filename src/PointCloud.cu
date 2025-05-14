@@ -575,6 +575,9 @@ __device__ __forceinline__ void UnionVoxel(HashMapInfo info, unsigned int a, uns
 	auto& voxelA = info.d_hashTable[rootA];
 	auto& voxelB = info.d_hashTable[rootB];
 
+	if (0.025f < voxelA.gradient.norm()) return;
+	if (0.025f < voxelB.gradient.norm()) return;
+
 	Eigen::Vector3f nA = (voxelA.normal / voxelA.pointCount).normalized();
 	Eigen::Vector3f nB = (voxelB.normal / voxelB.pointCount).normalized();
 
@@ -775,6 +778,11 @@ void PointCloud::SerializeColoringByLabel(PointCloudBuffers& d_tempBuffers)
 
 	cudaDeviceSynchronize();
 }
+
+
+
+
+
 
 __global__ void Kernel_SplitByNormal(HashMapInfo info, PointCloudBuffers buffers)
 {
