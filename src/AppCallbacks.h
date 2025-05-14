@@ -22,7 +22,7 @@ public:
     void Execute(vtkObject* caller, unsigned long eventId, void* callData) override;
 
 private:
-    std::chrono::steady_clock::time_point lastClickTime = std::chrono::steady_clock::now();
+    chrono::steady_clock::time_point lastClickTime = chrono::steady_clock::now();
 };
 
 class KeyPressCallback : public EventCallback
@@ -33,10 +33,6 @@ public:
     void Execute(vtkObject* caller, unsigned long eventId, void* callData) override;
 
     PointCloud* pointCloud;
-
-    vtkSmartPointer<vtkActor> pointCloudActor;
-    vtkSmartPointer<vtkActor> pointCloudNormalActor;
-    vtkSmartPointer<vtkActor> pointCloudClusteringActor;
 
     float normalGradientThreshold = 0.05f;
 };

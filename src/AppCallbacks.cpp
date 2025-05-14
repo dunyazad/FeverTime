@@ -59,7 +59,7 @@ void KeyPressCallback::Execute(vtkObject* caller, unsigned long eventId, void* c
     auto interactor = static_cast<vtkRenderWindowInteractor*>(caller);
     std::string key = interactor->GetKeySym();
 
-    std::cout << "[KEY] Pressed: " << key << std::endl;
+    //std::cout << "[KEY] Pressed: " << key << std::endl;
 
     if (key == "Escape")
     {
@@ -78,56 +78,27 @@ void KeyPressCallback::Execute(vtkObject* caller, unsigned long eventId, void* c
     }
     else if (key == "grave")
     {
-        vtkActorCollection* actors = app->GetRenderer()->GetActors();
-        vtkCollectionSimpleIterator it;
-        actors->InitTraversal(it);
-        while (vtkActor* actor = actors->GetNextActor(it))
-        {
-            bool lighting = actor->GetProperty()->GetLighting();
-            actor->GetProperty()->SetLighting(!lighting);
-        }
-
+        app->GetActiveEntity()->ToggleLighting();
         app->GetRenderWindow()->Render();
     }
     else if (key == "equal")
     {
-        vtkActorCollection* actors = app->GetRenderer()->GetActors();
-        vtkCollectionSimpleIterator it;
-        actors->InitTraversal(it);
-        while (vtkActor* actor = actors->GetNextActor(it))
-        {
-            auto pointSize = actor->GetProperty()->GetPointSize() + 1;
-            actor->GetProperty()->SetPointSize(pointSize);
-        }
-
+        app->GetActiveEntity()->IncreasePointSize();
         app->GetRenderWindow()->Render();
     }
     else if (key == "minus")
     {
-        vtkActorCollection* actors = app->GetRenderer()->GetActors();
-        vtkCollectionSimpleIterator it;
-        actors->InitTraversal(it);
-        while (vtkActor* actor = actors->GetNextActor(it))
-        {
-            auto pointSize = actor->GetProperty()->GetPointSize() - 1;
-            if (pointSize == 0) pointSize = 1;
-
-            actor->GetProperty()->SetPointSize(pointSize);
-        }
-
+        app->GetActiveEntity()->DecreasePointSize();
         app->GetRenderWindow()->Render();
     }
     else if (key == "Tab")
     {
-        std::cout << "Tab 키가 눌렸습니다." << std::endl;
-        pointCloudNormalActor->SetVisibility(!pointCloudNormalActor->GetVisibility());
+        app->GetActiveEntity()->ToggleNormalVisibility();
         app->GetRenderer()->GetRenderWindow()->Render();
     }
     else if (key == "space")
     {
         std::cout << "Space 키가 눌렸습니다." << std::endl;
-        pointCloudActor->SetVisibility(!pointCloudActor->GetVisibility());
-        pointCloudClusteringActor->SetVisibility(!pointCloudActor->GetVisibility());
         app->GetRenderer()->GetRenderWindow()->Render();
     }
     else if (key == "Prior")
@@ -135,47 +106,47 @@ void KeyPressCallback::Execute(vtkObject* caller, unsigned long eventId, void* c
         normalGradientThreshold += 0.005f;
         printf("ormalGradientThreshold : %f\n", normalGradientThreshold);
 
-        { // Normal Gradient
-            pointCloud->ComputeNormalGradient();
+        //{ // Normal Gradient
+        //    pointCloud->ComputeNormalGradient();
 
-            PointCloudBuffers d_tempBuffers;
-            d_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), false);
+        //    PointCloudBuffers d_tempBuffers;
+        //    d_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), false);
 
-            pointCloud->SerializeColoringByNormalGradient(normalGradientThreshold, d_tempBuffers);
+        //    pointCloud->SerializeColoringByNormalGradient(normalGradientThreshold, d_tempBuffers);
 
-            PointCloudBuffers h_tempBuffers;
-            h_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), true);
+        //    PointCloudBuffers h_tempBuffers;
+        //    h_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), true);
 
-            d_tempBuffers.CopyTo(h_tempBuffers);
+        //    d_tempBuffers.CopyTo(h_tempBuffers);
 
-            vtkSmartPointer<vtkUnsignedCharArray> clusteringColors = vtkSmartPointer<vtkUnsignedCharArray>::New();
-            clusteringColors->SetNumberOfComponents(4);
-            clusteringColors->SetName("Colors");
+        //    vtkSmartPointer<vtkUnsignedCharArray> clusteringColors = vtkSmartPointer<vtkUnsignedCharArray>::New();
+        //    clusteringColors->SetNumberOfComponents(4);
+        //    clusteringColors->SetName("Colors");
 
-            auto vertices = vtkSmartPointer<vtkCellArray>::New();
-            for (vtkIdType i = 0; i < h_tempBuffers.numberOfPoints; ++i)
-            {
-                vtkIdType pid = i;
-                vertices->InsertNextCell(1, &pid);
+        //    auto vertices = vtkSmartPointer<vtkCellArray>::New();
+        //    for (vtkIdType i = 0; i < h_tempBuffers.numberOfPoints; ++i)
+        //    {
+        //        vtkIdType pid = i;
+        //        vertices->InsertNextCell(1, &pid);
 
-                unsigned char color[4] = {
-                    h_tempBuffers.colors[i].x(),
-                    h_tempBuffers.colors[i].y(),
-                    h_tempBuffers.colors[i].z(),
-                    255 };
-                clusteringColors->InsertNextTypedTuple(color);
-            }
+        //        unsigned char color[4] = {
+        //            h_tempBuffers.colors[i].x(),
+        //            h_tempBuffers.colors[i].y(),
+        //            h_tempBuffers.colors[i].z(),
+        //            255 };
+        //        clusteringColors->InsertNextTypedTuple(color);
+        //    }
 
-            vtkSmartPointer<vtkPolyData> polyData =
-                vtkPolyData::SafeDownCast(
-                    vtkPolyDataMapper::SafeDownCast(pointCloudClusteringActor->GetMapper())->GetInput()
-                );
+        //    vtkSmartPointer<vtkPolyData> polyData =
+        //        vtkPolyData::SafeDownCast(
+        //            vtkPolyDataMapper::SafeDownCast(pointCloudClusteringActor->GetMapper())->GetInput()
+        //        );
 
-            polyData->GetPointData()->SetScalars(clusteringColors);
+        //    polyData->GetPointData()->SetScalars(clusteringColors);
 
-            d_tempBuffers.Terminate();
-            h_tempBuffers.Terminate();
-        }
+        //    d_tempBuffers.Terminate();
+        //    h_tempBuffers.Terminate();
+        //}
 
         app->GetRenderer()->GetRenderWindow()->Render();
     }
@@ -184,48 +155,62 @@ void KeyPressCallback::Execute(vtkObject* caller, unsigned long eventId, void* c
         normalGradientThreshold -= 0.005f;
         printf("ormalGradientThreshold : %f\n", normalGradientThreshold);
 
-        { // Normal Gradient
-            pointCloud->ComputeNormalGradient();
+        //{ // Normal Gradient
+        //    pointCloud->ComputeNormalGradient();
 
-            PointCloudBuffers d_tempBuffers;
-            d_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), false);
+        //    PointCloudBuffers d_tempBuffers;
+        //    d_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), false);
 
-            pointCloud->SerializeColoringByNormalGradient(normalGradientThreshold, d_tempBuffers);
+        //    pointCloud->SerializeColoringByNormalGradient(normalGradientThreshold, d_tempBuffers);
 
-            PointCloudBuffers h_tempBuffers;
-            h_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), true);
+        //    PointCloudBuffers h_tempBuffers;
+        //    h_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), true);
 
-            d_tempBuffers.CopyTo(h_tempBuffers);
+        //    d_tempBuffers.CopyTo(h_tempBuffers);
 
-            vtkSmartPointer<vtkUnsignedCharArray> clusteringColors = vtkSmartPointer<vtkUnsignedCharArray>::New();
-            clusteringColors->SetNumberOfComponents(4);
-            clusteringColors->SetName("Colors");
+        //    vtkSmartPointer<vtkUnsignedCharArray> clusteringColors = vtkSmartPointer<vtkUnsignedCharArray>::New();
+        //    clusteringColors->SetNumberOfComponents(4);
+        //    clusteringColors->SetName("Colors");
 
-            auto vertices = vtkSmartPointer<vtkCellArray>::New();
-            for (vtkIdType i = 0; i < h_tempBuffers.numberOfPoints; ++i)
-            {
-                vtkIdType pid = i;
-                vertices->InsertNextCell(1, &pid);
+        //    auto vertices = vtkSmartPointer<vtkCellArray>::New();
+        //    for (vtkIdType i = 0; i < h_tempBuffers.numberOfPoints; ++i)
+        //    {
+        //        vtkIdType pid = i;
+        //        vertices->InsertNextCell(1, &pid);
 
-                unsigned char color[4] = {
-                    h_tempBuffers.colors[i].x(),
-                    h_tempBuffers.colors[i].y(),
-                    h_tempBuffers.colors[i].z(),
-                    255 };
-                clusteringColors->InsertNextTypedTuple(color);
-            }
+        //        unsigned char color[4] = {
+        //            h_tempBuffers.colors[i].x(),
+        //            h_tempBuffers.colors[i].y(),
+        //            h_tempBuffers.colors[i].z(),
+        //            255 };
+        //        clusteringColors->InsertNextTypedTuple(color);
+        //    }
 
-            vtkSmartPointer<vtkPolyData> polyData =
-                vtkPolyData::SafeDownCast(
-                    vtkPolyDataMapper::SafeDownCast(pointCloudClusteringActor->GetMapper())->GetInput()
-                );
+        //    vtkSmartPointer<vtkPolyData> polyData =
+        //        vtkPolyData::SafeDownCast(
+        //            vtkPolyDataMapper::SafeDownCast(pointCloudClusteringActor->GetMapper())->GetInput()
+        //        );
 
-            polyData->GetPointData()->SetScalars(clusteringColors);
+        //    polyData->GetPointData()->SetScalars(clusteringColors);
 
-            d_tempBuffers.Terminate();
-            h_tempBuffers.Terminate();
-        }
+        //    d_tempBuffers.Terminate();
+        //    h_tempBuffers.Terminate();
+        //}
 
         app->GetRenderer()->GetRenderWindow()->Render();
+    }
+    else if (key == "Left")
+    {
+        app->DecreaseActiveEntityIndex();
+        app->GetRenderer()->GetRenderWindow()->Render();
+    }
+    else if (key == "Right")
+    {
+        app->IncreaseActiveEntityIndex();
+        app->GetRenderer()->GetRenderWindow()->Render();
+    }
+    else if (key == "3")
+    {
+        //this->SetAbortFlag(1);
     }
 }

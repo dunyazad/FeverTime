@@ -151,7 +151,7 @@ __global__ void Kernel_ComputeNeighborCount(HashMapInfo info)
 
 void PointCloud::ComputeNeighborCount()
 {
-	nvtxRangePushA("Clustering");
+	nvtxRangePushA("NeighborCount");
 
 	unsigned int numberOfOccupiedVoxels = 0;
 	cudaMemcpy(&numberOfOccupiedVoxels, hashmap.info.d_numberOfOccupiedVoxels, sizeof(unsigned int), cudaMemcpyDeviceToHost);

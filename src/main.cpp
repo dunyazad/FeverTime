@@ -1,6 +1,44 @@
+#pragma warning(disable : 4819)
+
 #include "App.h"
 
 #include <main.cuh>
+
+bool operator == (uint3 a, uint3 b)
+{
+    if (a.x != b.x) return false;
+    if (a.y != b.y) return false;
+    if (a.z != b.z) return false;
+    return true;
+}
+
+bool operator<(const uint3& a, const uint3& b) {
+    return std::tie(a.x, a.y, a.z) < std::tie(b.x, b.y, b.z);
+}
+
+ostream& operator<<(ostream& os, const uint3& v) {
+    return os << "(" << v.x << ", " << v.y << ", " << v.z << ")";
+}
+
+pair<uint3, unsigned int> max1, max2;
+
+void findTopTwo(const map<uint3, unsigned int>& colorHistogram) {
+    max1.second = max2.second = 0;
+
+    for (const auto& kv : colorHistogram) {
+        if (kv.second > max1.second) {
+            max2 = max1;
+            max1 = kv;
+        }
+        else if (kv.second > max2.second) {
+            max2 = kv;
+        }
+    }
+
+    cout << "1st Max: " << max1.first << " -> " << max1.second << "\n";
+    cout << "2nd Max: " << max2.first << " -> " << max2.second << "\n";
+}
+
 
 const string resource_file_name = "Compound";
 const string resource_file_name_ply = "../../res/3D/" + resource_file_name + ".ply";
@@ -11,10 +49,6 @@ int main(int argc, char** argv)
     App app;
 
     PointCloud pointCloud;
-
-    auto pointCloudActor = vtkSmartPointer<vtkActor>::New();
-    auto pointCloudNormalActor = vtkSmartPointer<vtkActor>::New();
-    auto pointCloudClusteringActor = vtkSmartPointer<vtkActor>::New();
 
     app.SetInitializeCallback([&](App& app) {
         {
@@ -31,9 +65,6 @@ int main(int argc, char** argv)
             auto keyCallback = vtkSmartPointer<KeyPressCallback>::New();
             keyCallback->SetApp(&app);
             keyCallback->pointCloud = &pointCloud;
-            keyCallback->pointCloudActor = pointCloudActor;
-            keyCallback->pointCloudNormalActor = pointCloudNormalActor;
-            keyCallback->pointCloudClusteringActor = pointCloudClusteringActor;
             app.GetInteractor()->AddObserver(vtkCommand::KeyPressEvent, keyCallback);
         }
 
@@ -47,120 +78,13 @@ int main(int argc, char** argv)
             }
         }
 
-        //cout << pointCloud.GetHostBuffers().aabb.min() << endl;
-        //cout << pointCloud.GetHostBuffers().aabb.max() << endl;
-        cout << pointCloud.GetHostBuffers().aabb.max() - pointCloud.GetHostBuffers().aabb.min() << endl;
+        auto defaultEntity = app.CreateEntity("Default");
+        defaultEntity->FromPointCloud(&pointCloud);
 
-        vtkSmartPointer<vtkPoints> points = vtkSmartPointer<vtkPoints>::New();
-        vtkSmartPointer<vtkFloatArray> normals = vtkSmartPointer<vtkFloatArray>::New();
-        normals->SetNumberOfComponents(3);
-        normals->SetName("Normals");
-
-        vtkSmartPointer<vtkUnsignedCharArray> colors = vtkSmartPointer<vtkUnsignedCharArray>::New();
-        colors->SetNumberOfComponents(4);
-        colors->SetName("Colors");
-
-        vtkSmartPointer<vtkPoints> normalLinesPoints = vtkSmartPointer<vtkPoints>::New();
-        vtkSmartPointer<vtkCellArray> normalLines = vtkSmartPointer<vtkCellArray>::New();
-        vtkSmartPointer<vtkUnsignedCharArray> normalColors = vtkSmartPointer<vtkUnsignedCharArray>::New();
-        normalColors->SetNumberOfComponents(4);
-        normalColors->SetName("Colors");
-
-        for (unsigned int i = 0; i < pointCloud.GetNumberOfPoints(); i++)
         {
-            auto& p = pointCloud.GetHostBuffers().positions[i];
-            auto& n = pointCloud.GetHostBuffers().normals[i];
-            auto& c = pointCloud.GetHostBuffers().colors[i];
+            auto entity = app.CreateEntity("Normal Gradient");
+            entity->CopyFrom(defaultEntity);
 
-            points->InsertNextPoint(p.x(), p.y(), p.z());
-            normals->InsertNextTuple3(n.x(), n.y(), n.z());
-
-            auto hashToFloat = [](uint32_t seed) -> float {
-                seed ^= seed >> 13;
-                seed *= 0x5bd1e995;
-                seed ^= seed >> 15;
-                return (seed & 0xFFFFFF) / static_cast<float>(0xFFFFFF);
-            };
-
-            unsigned char color[4] = { c.x(), c.y(), c.z(), 255 };
-            colors->InsertNextTypedTuple(color);
-
-            double startPoint[3] = { p.x(), p.y(), p.z() };
-            double endPoint[3] = {
-                p.x() + n.x() * 0.1,
-                p.y() + n.y() * 0.1,
-                p.z() + n.z() * 0.1
-            };
-
-            vtkIdType idStart = normalLinesPoints->InsertNextPoint(startPoint);
-            vtkIdType idEnd = normalLinesPoints->InsertNextPoint(endPoint);
-
-            vtkSmartPointer<vtkLine> line = vtkSmartPointer<vtkLine>::New();
-            line->GetPointIds()->SetId(0, idStart);
-            line->GetPointIds()->SetId(1, idEnd);
-
-            normalLines->InsertNextCell(line);
-
-            unsigned char endColor[4] = {
-                static_cast<unsigned char>((n.x() * 0.5f + 0.5f) * 255),
-                static_cast<unsigned char>((n.y() * 0.5f + 0.5f) * 255),
-                static_cast<unsigned char>((n.z() * 0.5f + 0.5f) * 255),
-                255
-            };
-            normalColors->InsertNextTypedTuple(color);
-            normalColors->InsertNextTypedTuple(endColor);
-        }
-
-        { // Main
-            auto vertices = vtkSmartPointer<vtkCellArray>::New();
-            for (vtkIdType i = 0; i < pointCloud.GetNumberOfPoints(); ++i)
-            {
-                vtkIdType pid = i;
-                vertices->InsertNextCell(1, &pid);
-            }
-
-            auto polyData = vtkSmartPointer<vtkPolyData>::New();
-            polyData->SetPoints(points);
-            polyData->SetVerts(vertices);
-            polyData->GetPointData()->SetScalars(colors);
-            polyData->GetPointData()->SetNormals(normals);
-
-            auto mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
-            mapper->SetInputData(polyData);
-            mapper->SetScalarModeToUsePointData();
-            mapper->SetColorModeToDirectScalars();
-            mapper->SetScalarVisibility(true);
-
-            pointCloudActor->SetMapper(mapper);
-            pointCloudActor->GetProperty()->SetPointSize(2);
-            pointCloudActor->GetProperty()->SetRepresentationToPoints();
-            pointCloudActor->GetProperty()->SetLighting(false);
-
-            app.GetRenderer()->AddActor(pointCloudActor);
-        }
-
-        { // Normal
-            auto normalPolyData = vtkSmartPointer<vtkPolyData>::New();
-            normalPolyData->SetPoints(normalLinesPoints);
-            normalPolyData->SetLines(normalLines);
-            normalPolyData->GetPointData()->SetScalars(normalColors);
-
-            auto normalMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
-            normalMapper->SetInputData(normalPolyData);
-
-            normalMapper->SetScalarModeToUsePointData();
-            normalMapper->SetColorModeToDirectScalars();
-            normalMapper->SetScalarVisibility(true);
-
-            pointCloudNormalActor->SetMapper(normalMapper);
-            pointCloudNormalActor->GetProperty()->SetLineWidth(1.5);
-
-            app.GetRenderer()->AddActor(pointCloudNormalActor);
-        }
-
-        // Normal Gradient
-        /*
-        {
             pointCloud.ComputeNormalGradient();
 
             PointCloudBuffers d_tempBuffers;
@@ -170,111 +94,20 @@ int main(int argc, char** argv)
 
             PointCloudBuffers h_tempBuffers;
             h_tempBuffers.Initialize(pointCloud.GetNumberOfPoints(), true);
-
             d_tempBuffers.CopyTo(h_tempBuffers);
 
-            vtkSmartPointer<vtkUnsignedCharArray> clusteringColors = vtkSmartPointer<vtkUnsignedCharArray>::New();
-            clusteringColors->SetNumberOfComponents(4);
-            clusteringColors->SetName("Colors");
-
-            auto vertices = vtkSmartPointer<vtkCellArray>::New();
-            for (vtkIdType i = 0; i < h_tempBuffers.numberOfPoints; ++i)
-            {
-                vtkIdType pid = i;
-                vertices->InsertNextCell(1, &pid);
-
-                unsigned char color[4] = {
-                    h_tempBuffers.colors[i].x(),
-                    h_tempBuffers.colors[i].y(),
-                    h_tempBuffers.colors[i].z(),
-                    255 };
-                clusteringColors->InsertNextTypedTuple(color);
-            }
-
-            auto polyData = vtkSmartPointer<vtkPolyData>::New();
-            polyData->SetPoints(points);
-            polyData->SetVerts(vertices);
-            polyData->GetPointData()->SetScalars(clusteringColors);
-            polyData->GetPointData()->SetNormals(normals);
-
-            auto mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
-            mapper->SetInputData(polyData);
-            mapper->SetScalarModeToUsePointData();
-            mapper->SetColorModeToDirectScalars();
-            mapper->SetScalarVisibility(true);
-
-            pointCloudClusteringActor->SetMapper(mapper);
-            pointCloudClusteringActor->GetProperty()->SetPointSize(2);
-            pointCloudClusteringActor->GetProperty()->SetRepresentationToPoints();
-            pointCloudClusteringActor->GetProperty()->SetLighting(false);
-
-            app.GetRenderer()->AddActor(pointCloudClusteringActor);
+            entity->UpdateColorFromBuffer(h_tempBuffers); // Add this function in Entity
 
             d_tempBuffers.Terminate();
             h_tempBuffers.Terminate();
+
+            entity->SetVisibility(false);
         }
-        */
 
-        // Normal Divergence
-        /*
         {
-            pointCloud.ComputeNormalDivergence();
+            auto entity = app.CreateEntity("Neighbor Count");
+            entity->CopyFrom(defaultEntity);
 
-            PointCloudBuffers d_tempBuffers;
-            d_tempBuffers.Initialize(pointCloud.GetNumberOfPoints(), false);
-
-            pointCloud.SerializeColoringByNormalDivergence(0.09f, d_tempBuffers);
-
-            PointCloudBuffers h_tempBuffers;
-            h_tempBuffers.Initialize(pointCloud.GetNumberOfPoints(), true);
-
-            d_tempBuffers.CopyTo(h_tempBuffers);
-
-            vtkSmartPointer<vtkUnsignedCharArray> clusteringColors = vtkSmartPointer<vtkUnsignedCharArray>::New();
-            clusteringColors->SetNumberOfComponents(4);
-            clusteringColors->SetName("Colors");
-
-            auto vertices = vtkSmartPointer<vtkCellArray>::New();
-            for (vtkIdType i = 0; i < h_tempBuffers.numberOfPoints; ++i)
-            {
-                vtkIdType pid = i;
-                vertices->InsertNextCell(1, &pid);
-
-                unsigned char color[4] = {
-                    h_tempBuffers.colors[i].x(),
-                    h_tempBuffers.colors[i].y(),
-                    h_tempBuffers.colors[i].z(),
-                    255 };
-                clusteringColors->InsertNextTypedTuple(color);
-            }
-
-            auto polyData = vtkSmartPointer<vtkPolyData>::New();
-            polyData->SetPoints(points);
-            polyData->SetVerts(vertices);
-            polyData->GetPointData()->SetScalars(clusteringColors);
-            polyData->GetPointData()->SetNormals(normals);
-
-            auto mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
-            mapper->SetInputData(polyData);
-            mapper->SetScalarModeToUsePointData();
-            mapper->SetColorModeToDirectScalars();
-            mapper->SetScalarVisibility(true);
-
-            pointCloudClusteringActor->SetMapper(mapper);
-            pointCloudClusteringActor->GetProperty()->SetPointSize(2);
-            pointCloudClusteringActor->GetProperty()->SetRepresentationToPoints();
-            pointCloudClusteringActor->GetProperty()->SetLighting(false);
-
-            app.GetRenderer()->AddActor(pointCloudClusteringActor);
-
-            d_tempBuffers.Terminate();
-            h_tempBuffers.Terminate();
-        }
-        */
-
-        // Compute Neighbor Count
-        /*
-        {
             pointCloud.ComputeNeighborCount();
 
             PointCloudBuffers d_tempBuffers;
@@ -284,109 +117,42 @@ int main(int argc, char** argv)
 
             PointCloudBuffers h_tempBuffers;
             h_tempBuffers.Initialize(pointCloud.GetNumberOfPoints(), true);
-
             d_tempBuffers.CopyTo(h_tempBuffers);
 
-            vtkSmartPointer<vtkUnsignedCharArray> clusteringColors = vtkSmartPointer<vtkUnsignedCharArray>::New();
-            clusteringColors->SetNumberOfComponents(4);
-            clusteringColors->SetName("Colors");
-
-            auto vertices = vtkSmartPointer<vtkCellArray>::New();
-            for (vtkIdType i = 0; i < h_tempBuffers.numberOfPoints; ++i)
-            {
-                vtkIdType pid = i;
-                vertices->InsertNextCell(1, &pid);
-
-                unsigned char color[4] = {
-                    h_tempBuffers.colors[i].x(),
-                    h_tempBuffers.colors[i].y(),
-                    h_tempBuffers.colors[i].z(),
-                    255 };
-                clusteringColors->InsertNextTypedTuple(color);
-            }
-
-            auto polyData = vtkSmartPointer<vtkPolyData>::New();
-            polyData->SetPoints(points);
-            polyData->SetVerts(vertices);
-            polyData->GetPointData()->SetScalars(clusteringColors);
-            polyData->GetPointData()->SetNormals(normals);
-
-            auto mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
-            mapper->SetInputData(polyData);
-            mapper->SetScalarModeToUsePointData();
-            mapper->SetColorModeToDirectScalars();
-            mapper->SetScalarVisibility(true);
-
-            pointCloudClusteringActor->SetMapper(mapper);
-            pointCloudClusteringActor->GetProperty()->SetPointSize(2);
-            pointCloudClusteringActor->GetProperty()->SetRepresentationToPoints();
-            pointCloudClusteringActor->GetProperty()->SetLighting(false);
-
-            app.GetRenderer()->AddActor(pointCloudClusteringActor);
+            entity->UpdateColorFromBuffer(h_tempBuffers); // Add this function in Entity
 
             d_tempBuffers.Terminate();
             h_tempBuffers.Terminate();
-        }
-        */
 
-        // Compute Color Distance
+            entity->SetVisibility(false);
+        }
         {
+            auto entity = app.CreateEntity("Color Mutiplication");
+            entity->CopyFrom(defaultEntity);
+
             pointCloud.ComputeColorMultiplication();
 
             PointCloudBuffers d_tempBuffers;
             d_tempBuffers.Initialize(pointCloud.GetNumberOfPoints(), false);
 
-            pointCloud.SerializeColoringByColorMultiplication(390.0f, d_tempBuffers);
+            pointCloud.SerializeColoringByColorMultiplication(400, d_tempBuffers);
 
             PointCloudBuffers h_tempBuffers;
             h_tempBuffers.Initialize(pointCloud.GetNumberOfPoints(), true);
-
             d_tempBuffers.CopyTo(h_tempBuffers);
 
-            vtkSmartPointer<vtkUnsignedCharArray> clusteringColors = vtkSmartPointer<vtkUnsignedCharArray>::New();
-            clusteringColors->SetNumberOfComponents(4);
-            clusteringColors->SetName("Colors");
-
-            auto vertices = vtkSmartPointer<vtkCellArray>::New();
-            for (vtkIdType i = 0; i < h_tempBuffers.numberOfPoints; ++i)
-            {
-                vtkIdType pid = i;
-                vertices->InsertNextCell(1, &pid);
-
-                unsigned char color[4] = {
-                    h_tempBuffers.colors[i].x(),
-                    h_tempBuffers.colors[i].y(),
-                    h_tempBuffers.colors[i].z(),
-                    255 };
-                clusteringColors->InsertNextTypedTuple(color);
-            }
-
-            auto polyData = vtkSmartPointer<vtkPolyData>::New();
-            polyData->SetPoints(points);
-            polyData->SetVerts(vertices);
-            polyData->GetPointData()->SetScalars(clusteringColors);
-            polyData->GetPointData()->SetNormals(normals);
-
-            auto mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
-            mapper->SetInputData(polyData);
-            mapper->SetScalarModeToUsePointData();
-            mapper->SetColorModeToDirectScalars();
-            mapper->SetScalarVisibility(true);
-
-            pointCloudClusteringActor->SetMapper(mapper);
-            pointCloudClusteringActor->GetProperty()->SetPointSize(2);
-            pointCloudClusteringActor->GetProperty()->SetRepresentationToPoints();
-            pointCloudClusteringActor->GetProperty()->SetLighting(false);
-
-            app.GetRenderer()->AddActor(pointCloudClusteringActor);
+            entity->UpdateColorFromBuffer(h_tempBuffers); // Add this function in Entity
 
             d_tempBuffers.Terminate();
             h_tempBuffers.Terminate();
+
+            entity->SetVisibility(false);
         }
 
-        // Clustering
-        /*
         {
+            auto entity = app.CreateEntity("Clustering");
+            entity->CopyFrom(defaultEntity);
+
             pointCloud.Clustering();
 
             PointCloudBuffers d_tempBuffers;
@@ -396,105 +162,29 @@ int main(int argc, char** argv)
 
             PointCloudBuffers h_tempBuffers;
             h_tempBuffers.Initialize(pointCloud.GetNumberOfPoints(), true);
-
             d_tempBuffers.CopyTo(h_tempBuffers);
 
-            vtkSmartPointer<vtkUnsignedCharArray> clusteringColors = vtkSmartPointer<vtkUnsignedCharArray>::New();
-            clusteringColors->SetNumberOfComponents(4);
-            clusteringColors->SetName("Colors");
-
-            auto vertices = vtkSmartPointer<vtkCellArray>::New();
-            for (vtkIdType i = 0; i < h_tempBuffers.numberOfPoints; ++i)
-            {
-                vtkIdType pid = i;
-                vertices->InsertNextCell(1, &pid);
-
-                unsigned char color[4] = {
-                    h_tempBuffers.colors[i].x(),
-                    h_tempBuffers.colors[i].y(),
-                    h_tempBuffers.colors[i].z(),
-                    255 };
-                clusteringColors->InsertNextTypedTuple(color);
-            }
-
-            auto polyData = vtkSmartPointer<vtkPolyData>::New();
-            polyData->SetPoints(points);
-            polyData->SetVerts(vertices);
-            polyData->GetPointData()->SetScalars(clusteringColors);
-            polyData->GetPointData()->SetNormals(normals);
-
-            auto mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
-            mapper->SetInputData(polyData);
-            mapper->SetScalarModeToUsePointData();
-            mapper->SetColorModeToDirectScalars();
-            mapper->SetScalarVisibility(true);
-
-            pointCloudClusteringActor->SetMapper(mapper);
-            pointCloudClusteringActor->GetProperty()->SetPointSize(2);
-            pointCloudClusteringActor->GetProperty()->SetRepresentationToPoints();
-            pointCloudClusteringActor->GetProperty()->SetLighting(false);
-
-            app.GetRenderer()->AddActor(pointCloudClusteringActor);
+            entity->UpdateColorFromBuffer(h_tempBuffers); // Add this function in Entity
 
             d_tempBuffers.Terminate();
             h_tempBuffers.Terminate();
+
+            entity->SetVisibility(false);
         }
-        */
 
-        // Split
-        /*
-        {
-            PointCloudBuffers d_tempBuffers;
-            d_tempBuffers.Initialize(pointCloud.GetNumberOfPoints(), false);
+        //{
+        //    auto colorBinarization = app.CreateEntity("Color Binarization");
+        //    entity->CopyTo(colorBinarization);
 
-            pointCloud.SplitByNormal(d_tempBuffers);
-
-            PointCloudBuffers h_tempBuffers;
-            h_tempBuffers.Initialize(pointCloud.GetNumberOfPoints(), true);
-
-            d_tempBuffers.CopyTo(h_tempBuffers);
-
-            vtkSmartPointer<vtkUnsignedCharArray> clusteringColors = vtkSmartPointer<vtkUnsignedCharArray>::New();
-            clusteringColors->SetNumberOfComponents(4);
-            clusteringColors->SetName("Colors");
-
-            auto vertices = vtkSmartPointer<vtkCellArray>::New();
-            for (vtkIdType i = 0; i < h_tempBuffers.numberOfPoints; ++i)
-            {
-                vtkIdType pid = i;
-                vertices->InsertNextCell(1, &pid);
-
-                unsigned char color[4] = {
-                    h_tempBuffers.colors[i].x(),
-                    h_tempBuffers.colors[i].y(),
-                    h_tempBuffers.colors[i].z(),
-                    255 };
-                clusteringColors->InsertNextTypedTuple(color);
-            }
-
-            auto polyData = vtkSmartPointer<vtkPolyData>::New();
-            polyData->SetPoints(points);
-            polyData->SetVerts(vertices);
-            polyData->GetPointData()->SetScalars(clusteringColors);
-            polyData->GetPointData()->SetNormals(normals);
-
-            auto mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
-            mapper->SetInputData(polyData);
-            mapper->SetScalarModeToUsePointData();
-            mapper->SetColorModeToDirectScalars();
-            mapper->SetScalarVisibility(true);
-
-            pointCloudClusteringActor->SetMapper(mapper);
-            pointCloudClusteringActor->GetProperty()->SetPointSize(2);
-            pointCloudClusteringActor->GetProperty()->SetRepresentationToPoints();
-            pointCloudClusteringActor->GetProperty()->SetLighting(false);
-
-            app.GetRenderer()->AddActor(pointCloudClusteringActor);
-
-            d_tempBuffers.Terminate();
-            h_tempBuffers.Terminate();
-        }
-        */
+        //    colorBinarization->SetVisibility(false);
+        //}
+  
+        //    auto hashToFloat = [](uint32_t seed) -> float {
+        //        seed ^= seed >> 13;
+        //        seed *= 0x5bd1e995;
+        //        seed ^= seed >> 15;
+        //        return (seed & 0xFFFFFF) / static_cast<float>(0xFFFFFF);
+        //    };
     });
 
     app.Initialize();

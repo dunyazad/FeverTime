@@ -1,7 +1,7 @@
 #pragma once
 
-#include <stdHeaderFiles.h>
 #include <cudaHeaderFiles.h>
+#include <stdHeaderFiles.h>
 
 #include <Eigen/Core>
 #include <Eigen/Dense>
@@ -72,7 +72,7 @@ struct HashMap
 
     void InsertPoints(PointCloudBuffers buffers);
 
-    void SerializeToPLY(const std::string& filename);
+    void SerializeToPLY(const string& filename);
 };
 
 __device__ __host__ float hashToFloat(uint32_t seed);

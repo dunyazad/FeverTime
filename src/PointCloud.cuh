@@ -1,7 +1,7 @@
 #pragma once
 
-#include <stdHeaderFiles.h>
 #include <cudaHeaderFiles.h>
+#include <stdHeaderFiles.h>
 
 #include <Eigen/Core>
 #include <Eigen/Dense>
@@ -26,8 +26,8 @@ public:
 	void HtoD();
 	void DtoH();
 
-	bool LoadFromPLY(const std::string& filename);
-	bool LoadFromALP(const std::string& filename);
+	bool LoadFromPLY(const string& filename);
+	bool LoadFromALP(const string& filename);
 
 	void ComputeNeighborCount();
 	void SerializeColoringByNeighborCount(PointCloudBuffers& d_tempBuffers);
@@ -41,7 +41,7 @@ public:
 	void ComputeColorMultiplication();
 	void SerializeColoringByColorMultiplication(float threshold, PointCloudBuffers& d_tempBuffers);
 
-	std::vector<unsigned int> Clustering();
+	vector<unsigned int> Clustering();
 
 	void SerializeColoringByLabel(PointCloudBuffers& d_tempBuffers);
 

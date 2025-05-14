@@ -2,6 +2,7 @@
 
 #include <vtkActor.h>
 #include <vtkArrowSource.h>
+#include <vtkAssembly.h>
 #include <vtkCamera.h>
 #include <vtkCellArray.h>
 #include <vtkCommand.h>
@@ -22,3 +23,5 @@
 #include <vtkSmartPointer.h>
 #include <vtkSphereSource.h>
 #include <vtkUnsignedCharArray.h>
+#include <vtkOutputWindow.h>
+#include <vtkWin32OpenGLRenderWindow.h>

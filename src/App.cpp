@@ -1,7 +1,7 @@
 #include "App.h"
+#include <windows.h>
 
-#include <vtkRenderWindow.h>
-#include <windows.h> // For HWND
+#include <Entity.h>
 
 App::App()
 {
@@ -13,26 +13,34 @@ App::~App()
 
 void App::Initialize()
 {
-    renderer = vtkSmartPointer<vtkRenderer>::New();
-    renderWindow = vtkSmartPointer<vtkRenderWindow>::New();
+    renderer->GetActiveCamera()->SetEyeAngle(0);
+
+    renderWindow->StereoCapableWindowOff();
+    renderWindow->SetStereoRender(false);
+    renderWindow->SetStereoType(0);
     renderWindow->AddRenderer(renderer);
 
-    interactor = vtkSmartPointer<vtkRenderWindowInteractor>::New();
     interactor->SetRenderWindow(renderWindow);
 
-    interactorStyle = vtkSmartPointer<vtkInteractorStyleTrackballCamera>::New();
     interactor->SetInteractorStyle(interactorStyle);
 
-	this->onInitializeCallback(*this);
+    if (nullptr != onInitializeCallback)
+    {
+        this->onInitializeCallback(*this);
+    }
 }
 
 void App::Terminate()
 {
-	this->onTerminateCallback();
+    if (nullptr != onTerminateCallback)
+    {
+        this->onTerminateCallback();
+    }
 }
 
 void App::Run()
 {
+    renderer->ResetCamera();
 	renderWindow->Render();
 
 #ifdef _WINDOWS
@@ -43,4 +51,49 @@ void App::Run()
 #endif
 
 	interactor->Start();
+}
+
+Entity* App::CreateEntity(const string& name)
+{
+    Entity* entity = new Entity(renderer);
+
+    if (!name.empty())
+    {
+        if (nameEntityMapping.find(name) != nameEntityMapping.end())
+        {
+            cerr << "[App] Entity with name \"" << name << "\" already exists!" << endl;
+            delete entity;
+            return nullptr;
+        }
+        nameEntityMapping[name] = entity;
+        entityNameMapping[static_cast<unsigned int>(entities.size())] = name;
+    }
+
+    entities.push_back(entity);
+    return entity;
+}
+
+Entity* App::GetEntity(const string& name)
+{
+    auto it = nameEntityMapping.find(name);
+    if (it != nameEntityMapping.end())
+    {
+        return it->second;
+    }
+    return nullptr;
+}
+
+Entity* App::GetEntity(unsigned int index)
+{
+    if (index < entities.size())
+    {
+        return entities[index];
+    }
+    return nullptr;
+}
+
+Entity* App::GetActiveEntity()
+{
+    if (entities.size() <= activeEntityIndex) return nullptr;
+    else return entities[activeEntityIndex];
 }
