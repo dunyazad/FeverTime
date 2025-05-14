@@ -4,3 +4,10 @@
 [submodule "ext/asio"]
 	path = ext/asio
 	url = https://github.com/chriskohlhoff/asio.git
+[submodule "ext/websocketpp"]
+	path = ext/websocketpp
+	url = https://github.com/zaphoyd/websocketpp.git
+	branch = develop
+[submodule "ext/uWebSockets"]
+	path = ext/uWebSockets
+	url = https://github.com/uNetworking/uWebSockets.git
