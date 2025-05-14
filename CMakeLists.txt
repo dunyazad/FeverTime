@@ -45,6 +45,8 @@ vtk_module_autoinit(
 target_include_directories(FeverTime PRIVATE
     "${CMAKE_SOURCE_DIR}/ext/nvapi510/include"
     "${CMAKE_SOURCE_DIR}/ext/eigen"
+    "${CMAKE_SOURCE_DIR}/ext/asio/asio/include"
+    "${CMAKE_SOURCE_DIR}/ext/websocketpp"
     "${CMAKE_SOURCE_DIR}/src"
 )
 

@@ -1,5 +1,10 @@
 #pragma warning(disable : 4819)
 
+#define _WEBSOCKETPP_CPP11_STL_
+#define ASIO_STANDALONE
+#include <websocketpp/config/asio_no_tls.hpp>
+#include <websocketpp/server.hpp>
+
 #include "App.h"
 
 #include <main.cuh>
@@ -43,6 +48,42 @@ void findTopTwo(const map<uint3, unsigned int>& colorHistogram) {
 const string resource_file_name = "Compound";
 const string resource_file_name_ply = "../../res/3D/" + resource_file_name + ".ply";
 const string resource_file_name_alp = "../../res/3D/" + resource_file_name + ".alp";
+
+
+typedef websocketpp::server<websocketpp::config::asio> echo_server;
+
+std::atomic_bool g_runEchoServer = true;
+
+void RunEchoServer() {
+    echo_server server;
+
+    try {
+        server.set_access_channels(websocketpp::log::alevel::none);
+        server.init_asio();
+
+        server.set_message_handler([&server](websocketpp::connection_hdl hdl, echo_server::message_ptr msg) {
+            std::string payload = msg->get_payload();
+            std::cout << "[WebSocket] Received: " << payload << std::endl;
+
+            try {
+                server.send(hdl, payload, msg->get_opcode());
+            }
+            catch (const websocketpp::exception& e) {
+                std::cerr << "[WebSocket] Send failed: " << e.what() << std::endl;
+            }
+            });
+
+        server.listen(9002);
+        server.start_accept();
+
+        std::cout << "[WebSocket] Echo server running on ws://localhost:9002" << std::endl;
+        server.run();
+
+    }
+    catch (const std::exception& e) {
+        std::cerr << "[WebSocket] Server exception: " << e.what() << std::endl;
+    }
+}
 
 int main(int argc, char** argv)
 {
