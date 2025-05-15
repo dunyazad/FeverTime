@@ -1,12 +1,6 @@
 #pragma warning(disable : 4819)
 
-#define _WEBSOCKETPP_CPP11_STL_
-#define ASIO_STANDALONE
-#include <websocketpp/config/asio_no_tls.hpp>
-#include <websocketpp/server.hpp>
-
 #include "App.h"
-
 #include <main.cuh>
 
 bool operator == (uint3 a, uint3 b)
@@ -48,42 +42,6 @@ void findTopTwo(const map<uint3, unsigned int>& colorHistogram) {
 const string resource_file_name = "Compound";
 const string resource_file_name_ply = "../../res/3D/" + resource_file_name + ".ply";
 const string resource_file_name_alp = "../../res/3D/" + resource_file_name + ".alp";
-
-
-typedef websocketpp::server<websocketpp::config::asio> echo_server;
-
-std::atomic_bool g_runEchoServer = true;
-
-void RunEchoServer() {
-    echo_server server;
-
-    try {
-        server.set_access_channels(websocketpp::log::alevel::none);
-        server.init_asio();
-
-        server.set_message_handler([&server](websocketpp::connection_hdl hdl, echo_server::message_ptr msg) {
-            std::string payload = msg->get_payload();
-            std::cout << "[WebSocket] Received: " << payload << std::endl;
-
-            try {
-                server.send(hdl, payload, msg->get_opcode());
-            }
-            catch (const websocketpp::exception& e) {
-                std::cerr << "[WebSocket] Send failed: " << e.what() << std::endl;
-            }
-            });
-
-        server.listen(9002);
-        server.start_accept();
-
-        std::cout << "[WebSocket] Echo server running on ws://localhost:9002" << std::endl;
-        server.run();
-
-    }
-    catch (const std::exception& e) {
-        std::cerr << "[WebSocket] Server exception: " << e.what() << std::endl;
-    }
-}
 
 int main(int argc, char** argv)
 {
@@ -142,6 +100,68 @@ int main(int argc, char** argv)
         app.GetRenderWindow()->Render();
 
         {
+            auto entity = app.CreateEntity("Clustering");
+            entity->CopyFrom(defaultEntity);
+
+            pointCloud.Clustering();
+
+            PointCloudBuffers d_tempBuffers;
+            d_tempBuffers.Initialize(pointCloud.GetNumberOfPoints(), false);
+
+            pointCloud.SerializeColoringByLabel(d_tempBuffers);
+
+            PointCloudBuffers h_tempBuffers;
+            h_tempBuffers.Initialize(pointCloud.GetNumberOfPoints(), true);
+            d_tempBuffers.CopyTo(h_tempBuffers);
+
+            entity->UpdateColorFromBuffer(h_tempBuffers);
+
+            d_tempBuffers.Terminate();
+            h_tempBuffers.Terminate();
+
+            entity->SetVisibility(false);
+        }
+
+        {
+            auto entity = app.CreateEntity("Voxels");
+
+            PointCloudBuffers d_tempBuffers;
+            d_tempBuffers.Initialize(pointCloud.GetNumberOfPoints(), false);
+
+            pointCloud.SerializeVoxelsColoringByLabel(d_tempBuffers);
+
+            entity->FromPointCloudBuffers(&d_tempBuffers);
+
+            d_tempBuffers.Terminate();
+        }
+
+        /*
+        {
+            auto entity = app.CreateEntity("Normal Discontinuity");
+            entity->CopyFrom(defaultEntity);
+
+            pointCloud.ComputeNormalDiscontinuity();
+
+            PointCloudBuffers d_tempBuffers;
+            d_tempBuffers.Initialize(pointCloud.GetNumberOfPoints(), false);
+
+            pointCloud.SerializeColoringByNormalDiscontinuity(d_tempBuffers);
+
+            PointCloudBuffers h_tempBuffers;
+            h_tempBuffers.Initialize(pointCloud.GetNumberOfPoints(), true);
+            d_tempBuffers.CopyTo(h_tempBuffers);
+
+            entity->UpdateColorFromBuffer(h_tempBuffers);
+
+            d_tempBuffers.Terminate();
+            h_tempBuffers.Terminate();
+
+            entity->SetVisibility(false);
+        }
+        */
+
+        /*
+        {
             auto entity = app.CreateEntity("Normal Gradient");
             entity->CopyFrom(defaultEntity);
 
@@ -163,7 +183,9 @@ int main(int argc, char** argv)
 
             entity->SetVisibility(false);
         }
+        */
 
+        /*
         {
             auto entity = app.CreateEntity("Neighbor Count");
             entity->CopyFrom(defaultEntity);
@@ -186,6 +208,9 @@ int main(int argc, char** argv)
 
             entity->SetVisibility(false);
         }
+        */
+
+        /*
         {
             auto entity = app.CreateEntity("Color Mutiplication");
             entity->CopyFrom(defaultEntity);
@@ -208,30 +233,9 @@ int main(int argc, char** argv)
 
             entity->SetVisibility(false);
         }
+        */
 
-        {
-            auto entity = app.CreateEntity("Clustering");
-            entity->CopyFrom(defaultEntity);
-
-            pointCloud.Clustering();
-
-            PointCloudBuffers d_tempBuffers;
-            d_tempBuffers.Initialize(pointCloud.GetNumberOfPoints(), false);
-
-            pointCloud.SerializeColoringByLabel(d_tempBuffers);
-
-            PointCloudBuffers h_tempBuffers;
-            h_tempBuffers.Initialize(pointCloud.GetNumberOfPoints(), true);
-            d_tempBuffers.CopyTo(h_tempBuffers);
-
-            entity->UpdateColorFromBuffer(h_tempBuffers); // Add this function in Entity
-
-            d_tempBuffers.Terminate();
-            h_tempBuffers.Terminate();
-
-            entity->SetVisibility(false);
-        }
-
+        /*
         {
             auto distance =
                 [&](const uint3& a, const uint3& b) {
@@ -290,7 +294,7 @@ int main(int argc, char** argv)
                             for (int k = 0; k < K; ++k)
                                 centroids[k] = average(clusters[k]);
                         }
-            };
+                };
 
             vector<uint3> inputColors;
             for (size_t i = 0; i < pointCloud.GetNumberOfPoints(); i++)
@@ -329,20 +333,25 @@ int main(int argc, char** argv)
 
             entity->SetVisibility(false);
         }
+        */
 
-        //{
-        //    auto colorBinarization = app.CreateEntity("Color Binarization");
-        //    entity->CopyTo(colorBinarization);
+        /*
+        {
+            auto colorBinarization = app.CreateEntity("Color Binarization");
+            entity->CopyTo(colorBinarization);
 
-        //    colorBinarization->SetVisibility(false);
-        //}
+            colorBinarization->SetVisibility(false);
+        }
+        */
   
-        //    auto hashToFloat = [](uint32_t seed) -> float {
-        //        seed ^= seed >> 13;
-        //        seed *= 0x5bd1e995;
-        //        seed ^= seed >> 15;
-        //        return (seed & 0xFFFFFF) / static_cast<float>(0xFFFFFF);
-        //    };
+        /*
+        auto hashToFloat = [](uint32_t seed) -> float {
+            seed ^= seed >> 13;
+            seed *= 0x5bd1e995;
+            seed ^= seed >> 15;
+            return (seed & 0xFFFFFF) / static_cast<float>(0xFFFFFF);
+        };
+        */
     });
 
     app.Initialize();

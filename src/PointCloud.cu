@@ -107,6 +107,90 @@ bool PointCloud::LoadFromALP(const std::string& filename)
 	return true;
 }
 
+
+
+
+
+__global__ void Kernel_SerializeVoxels(HashMapInfo info, PointCloudBuffers buffers)
+{
+	unsigned int threadid = blockDim.x * blockIdx.x + threadIdx.x;
+	if (threadid >= *info.d_numberOfOccupiedVoxels) return;
+
+	int3 coord = info.d_occupiedVoxelIndices[threadid];
+	size_t slot = GetVoxelSlot(info, coord);
+	if (slot == UINT64_MAX) return;
+
+	HashMapVoxel* voxel = GetVoxel(info, slot);
+	if (voxel == nullptr) return;
+
+	auto position = Eigen::Vector3f(coord.x * info.voxelSize, coord.y * info.voxelSize, coord.z * info.voxelSize);
+	auto normal = (voxel->normal / (float)voxel->pointCount).normalized();
+	auto color = voxel->color;
+
+	buffers.positions[threadid] = position;
+	buffers.normals[threadid] = normal;
+	buffers.colors[threadid] = color;
+}
+
+void PointCloud::SerializeVoxels(PointCloudBuffers& d_tempBuffers)
+{
+	nvtxRangePushA("SerializeVoxels");
+
+	unsigned int numberOfOccupiedVoxels = hashmap.info.h_numberOfOccupiedVoxels;
+
+	unsigned int blockSize = 256;
+	unsigned int gridOccupied = (numberOfOccupiedVoxels + blockSize - 1) / blockSize;
+
+	Kernel_SerializeVoxels << <gridOccupied, blockSize >> > (hashmap.info, d_tempBuffers);
+
+	cudaDeviceSynchronize();
+}
+
+__global__ void Kernel_SerializeVoxelsColoringByLabel(HashMapInfo info, PointCloudBuffers buffers)
+{
+	unsigned int threadid = blockDim.x * blockIdx.x + threadIdx.x;
+	if (threadid >= *info.d_numberOfOccupiedVoxels) return;
+
+	int3 coord = info.d_occupiedVoxelIndices[threadid];
+	size_t slot = GetVoxelSlot(info, coord);
+	if (slot == UINT64_MAX) return;
+
+	HashMapVoxel* voxel = GetVoxel(info, slot);
+	if (voxel == nullptr) return;
+
+	auto position = Eigen::Vector3f(coord.x * info.voxelSize, coord.y * info.voxelSize, coord.z * info.voxelSize);
+	auto normal = (voxel->normal / (float)voxel->pointCount).normalized();
+	
+	float r = hashToFloat(voxel->label * 3 + 0);
+	float g = hashToFloat(voxel->label * 3 + 1);
+	float b = hashToFloat(voxel->label * 3 + 2);
+
+	auto color = Eigen::Vector3b(r * 255.0f, g * 255.0f, b * 255.0f);
+
+	buffers.positions[threadid] = position;
+	buffers.normals[threadid] = normal;
+	buffers.colors[threadid] = color;
+}
+
+void PointCloud::SerializeVoxelsColoringByLabel(PointCloudBuffers& d_tempBuffers)
+{
+	nvtxRangePushA("SerializeVoxelsColoringByLabel");
+
+	unsigned int numberOfOccupiedVoxels = hashmap.info.h_numberOfOccupiedVoxels;
+
+	unsigned int blockSize = 256;
+	unsigned int gridOccupied = (numberOfOccupiedVoxels + blockSize - 1) / blockSize;
+
+	Kernel_SerializeVoxelsColoringByLabel << <gridOccupied, blockSize >> > (hashmap.info, d_tempBuffers);
+
+	cudaDeviceSynchronize();
+}
+
+
+
+
+
+
 __global__ void Kernel_ComputeNeighborCount(HashMapInfo info)
 {
 	unsigned int threadid = blockDim.x * blockIdx.x + threadIdx.x;
@@ -156,10 +240,7 @@ void PointCloud::ComputeNeighborCount()
 {
 	nvtxRangePushA("NeighborCount");
 
-	unsigned int numberOfOccupiedVoxels = 0;
-	cudaMemcpy(&numberOfOccupiedVoxels, hashmap.info.d_numberOfOccupiedVoxels, sizeof(unsigned int), cudaMemcpyDeviceToHost);
-
-	vector<unsigned int> labels;
+	unsigned int numberOfOccupiedVoxels = hashmap.info.h_numberOfOccupiedVoxels;
 
 	unsigned int blockSize = 256;
 	unsigned int gridOccupied = (numberOfOccupiedVoxels + blockSize - 1) / blockSize;
@@ -236,6 +317,115 @@ void PointCloud::SerializeColoringByNeighborCount(PointCloudBuffers& d_tempBuffe
 	cudaDeviceSynchronize();
 }
 
+
+
+
+
+
+__global__ void Kernel_ComputeNormalDiscontinuity(HashMapInfo info)
+{
+	unsigned int threadid = blockDim.x * blockIdx.x + threadIdx.x;
+	if (threadid >= *info.d_numberOfOccupiedVoxels) return;
+
+	int3 coord = info.d_occupiedVoxelIndices[threadid];
+	size_t slot = GetVoxelSlot(info, coord);
+	if (slot == UINT64_MAX) return;
+
+	HashMapVoxel* centerVoxel = GetVoxel(info, slot);
+	if (centerVoxel == nullptr || centerVoxel->label == 0) return;
+
+	auto centerNormal = (centerVoxel->normal / (float)centerVoxel->pointCount).normalized();
+
+	const int3 offsets[26] =
+	{
+		{1,0,0}, {-1,0,0}, {0,1,0}, {0,-1,0}, {0,0,1}, {0,0,-1},
+		{1,1,0}, {1,-1,0}, {-1,1,0}, {-1,-1,0},
+		{1,0,1}, {1,0,-1}, {-1,0,1}, {-1,0,-1},
+		{0,1,1}, {0,1,-1}, {0,-1,1}, {0,-1,-1},
+		{1,1,1}, {1,1,-1}, {1,-1,1}, {1,-1,-1},
+		{-1,1,1}, {-1,1,-1}, {-1,-1,1}, {-1,-1,-1}
+	};
+
+#pragma unroll
+	for (int ni = 0; ni < 26; ++ni)
+	{
+		int3 neighborCoord = make_int3(
+			coord.x + offsets[ni].x,
+			coord.y + offsets[ni].y,
+			coord.z + offsets[ni].z);
+
+		size_t neighborSlot = GetVoxelSlot(info, neighborCoord);
+		HashMapVoxel* neighborVoxel = GetVoxel(info, neighborSlot);
+
+		if (neighborVoxel == nullptr) continue;
+
+		auto neighborNormal = (neighborVoxel->normal / (float)neighborVoxel->pointCount).normalized();
+
+		auto similarity = centerNormal.dot(neighborNormal);
+
+		if (0.9f > similarity)
+		{
+			//printf("similarity : %f\n", similarity);
+
+			centerVoxel->normalDiscontinue = 1;
+			return;
+		}
+	}
+}
+
+void PointCloud::ComputeNormalDiscontinuity()
+{
+	nvtxRangePushA("NormalDiscontinuity");
+
+	unsigned int numberOfOccupiedVoxels = hashmap.info.h_numberOfOccupiedVoxels;
+
+	unsigned int blockSize = 256;
+	unsigned int gridOccupied = (numberOfOccupiedVoxels + blockSize - 1) / blockSize;
+
+	Kernel_ComputeNormalDiscontinuity << <gridOccupied, blockSize >> > (hashmap.info);
+
+	cudaDeviceSynchronize();
+}
+
+__global__ void Kernel_SerializeColoringByNormalDiscontinuity(HashMapInfo info, PointCloudBuffers buffers)
+{
+	int idx = blockIdx.x * blockDim.x + threadIdx.x;
+	if (idx >= buffers.numberOfPoints) return;
+
+	auto& p = buffers.positions[idx];
+	int3 coord = make_int3(floorf(p.x() / info.voxelSize), floorf(p.y() / info.voxelSize), floorf(p.z() / info.voxelSize));
+	size_t slot = GetVoxelSlot(info, coord);
+	HashMapVoxel* voxel = GetVoxel(info, slot);
+	if (voxel == nullptr || voxel->label == 0) return;
+
+	if (0 != voxel->normalDiscontinue)
+	{
+		buffers.colors[idx] = Eigen::Vector3b(255, 0, 0);
+	}
+	else
+	{
+		buffers.colors[idx] = Eigen::Vector3b(100, 100, 100);
+	}
+}
+
+void PointCloud::SerializeColoringByNormalDiscontinuity(PointCloudBuffers& d_tempBuffers)
+{
+	d_buffers.CopyTo(d_tempBuffers);
+
+	unsigned int blockSize = 256;
+	unsigned int gridOccupied = (d_buffers.numberOfPoints + blockSize - 1) / blockSize;
+
+	Kernel_SerializeColoringByNormalDiscontinuity << <gridOccupied, blockSize >> > (hashmap.info, d_tempBuffers);
+
+	cudaDeviceSynchronize();
+}
+
+
+
+
+
+
+
 __global__ void Kernel_ComputeNormalGradient(HashMapInfo info)
 {
 	unsigned int threadid = blockDim.x * blockIdx.x + threadIdx.x;
@@ -292,9 +482,8 @@ void PointCloud::ComputeNormalGradient()
 {
 	nvtxRangePushA("ComputeNormalGradient");
 
-	unsigned int numberOfOccupiedVoxels = 0;
-	cudaMemcpy(&numberOfOccupiedVoxels, hashmap.info.d_numberOfOccupiedVoxels, sizeof(unsigned int), cudaMemcpyDeviceToHost);
-
+	unsigned int numberOfOccupiedVoxels = hashmap.info.h_numberOfOccupiedVoxels;
+	
 	unsigned int blockSize = 256;
 	unsigned int gridOccupied = (numberOfOccupiedVoxels + blockSize - 1) / blockSize;
 
@@ -340,6 +529,8 @@ void PointCloud::SerializeColoringByNormalGradient(float threshold, PointCloudBu
 
 	cudaDeviceSynchronize();
 }
+
+
 
 
 
@@ -394,9 +585,8 @@ void PointCloud::ComputeNormalDivergence()
 {
 	nvtxRangePushA("ComputeNormalDivergence");
 
-	unsigned int numberOfOccupiedVoxels = 0;
-	cudaMemcpy(&numberOfOccupiedVoxels, hashmap.info.d_numberOfOccupiedVoxels, sizeof(unsigned int), cudaMemcpyDeviceToHost);
-
+	unsigned int numberOfOccupiedVoxels = hashmap.info.h_numberOfOccupiedVoxels;
+	
 	unsigned int blockSize = 256;
 	unsigned int gridOccupied = (numberOfOccupiedVoxels + blockSize - 1) / blockSize;
 
@@ -499,9 +689,8 @@ void PointCloud::ComputeColorMultiplication()
 {
 	nvtxRangePushA("ComputeColorMultiplication");
 
-	unsigned int numberOfOccupiedVoxels = 0;
-	cudaMemcpy(&numberOfOccupiedVoxels, hashmap.info.d_numberOfOccupiedVoxels, sizeof(unsigned int), cudaMemcpyDeviceToHost);
-
+	unsigned int numberOfOccupiedVoxels = hashmap.info.h_numberOfOccupiedVoxels;
+	
 	unsigned int blockSize = 256;
 	unsigned int gridOccupied = (numberOfOccupiedVoxels + blockSize - 1) / blockSize;
 
@@ -551,12 +740,56 @@ void PointCloud::SerializeColoringByColorMultiplication(float threshold, PointCl
 
 
 
+
+//constexpr float kMaxMergeDistance = 10.0f; // meter 단위로 적절히 조절
+constexpr float kMinNormalDot = 0.0f;      // 약 45도 이하만 병합 허용
+
+//__device__ __forceinline__ unsigned int FindRootVoxel(HashMapInfo info, unsigned int idx)
+//{
+//	while (info.d_hashTable[idx].label != idx)
+//	{
+//		unsigned int parent = info.d_hashTable[idx].label;
+//		unsigned int grandparent = info.d_hashTable[parent].label;
+//
+//		//auto& voxelA = info.d_hashTable[idx];
+//		//auto& voxelB = info.d_hashTable[parent];
+//
+//		//Eigen::Vector3f nA = (voxelA.normal / voxelA.pointCount).normalized();
+//		//Eigen::Vector3f nB = (voxelB.normal / voxelB.pointCount).normalized();
+//		//
+//		//const float minDot = 0.0f;
+//		//if (nA.dot(nB) < minDot) return idx;
+//
+//		if (parent != grandparent)
+//			info.d_hashTable[idx].label = grandparent;
+//
+//		idx = info.d_hashTable[idx].label;
+//	}
+//	return idx;
+//}
+
 __device__ __forceinline__ unsigned int FindRootVoxel(HashMapInfo info, unsigned int idx)
 {
 	while (info.d_hashTable[idx].label != idx)
 	{
 		unsigned int parent = info.d_hashTable[idx].label;
 		unsigned int grandparent = info.d_hashTable[parent].label;
+
+		auto& voxelA = info.d_hashTable[idx];
+		auto& voxelB = info.d_hashTable[parent];
+
+		//// 거리 조건
+		//Eigen::Vector3f centerA = voxelA.position / voxelA.pointCount;
+		//Eigen::Vector3f centerB = voxelB.position / voxelB.pointCount;
+		//float distSq = (centerA - centerB).squaredNorm();
+		//if (distSq > kMaxMergeDistance * kMaxMergeDistance) break;
+
+		//// 법선 조건
+		//Eigen::Vector3f nA = (voxelA.normal / voxelA.pointCount).normalized();
+		//Eigen::Vector3f nB = (voxelB.normal / voxelB.pointCount).normalized();
+		//if (nA.dot(nB) < kMinNormalDot) break;
+
+		// 경로 압축
 		if (parent != grandparent)
 			info.d_hashTable[idx].label = grandparent;
 
@@ -565,34 +798,64 @@ __device__ __forceinline__ unsigned int FindRootVoxel(HashMapInfo info, unsigned
 	return idx;
 }
 
+
+//__device__ __forceinline__ void UnionVoxel(HashMapInfo info, unsigned int a, unsigned int b)
+//{
+//	unsigned int rootA = FindRootVoxel(info, a);
+//	unsigned int rootB = FindRootVoxel(info, b);
+//
+//	if (rootA == rootB) return;
+//
+//	auto& voxelA = info.d_hashTable[rootA];
+//	auto& voxelB = info.d_hashTable[rootB];
+//
+//	////if (0.025f < voxelA.gradient.norm()) return;
+//	////if (0.025f < voxelB.gradient.norm()) return;
+//
+//	//Eigen::Vector3f nA = (voxelA.normal / voxelA.pointCount).normalized();
+//	//Eigen::Vector3f nB = (voxelB.normal / voxelB.pointCount).normalized();
+//
+//	//const float minDot = 0.0f;
+//	//if (nA.dot(nB) < minDot) return;
+//
+//	if (rootA < rootB)
+//	{
+//		atomicMin(&voxelB.label, rootA);
+//	}
+//	else
+//	{
+//		atomicMin(&voxelA.label, rootB);
+//	}
+//}
+
 __device__ __forceinline__ void UnionVoxel(HashMapInfo info, unsigned int a, unsigned int b)
 {
 	unsigned int rootA = FindRootVoxel(info, a);
 	unsigned int rootB = FindRootVoxel(info, b);
-
 	if (rootA == rootB) return;
 
 	auto& voxelA = info.d_hashTable[rootA];
 	auto& voxelB = info.d_hashTable[rootB];
 
-	if (0.025f < voxelA.gradient.norm()) return;
-	if (0.025f < voxelB.gradient.norm()) return;
+	//// 중심 좌표 계산
+	//Eigen::Vector3f centerA = voxelA.position / voxelA.pointCount;
+	//Eigen::Vector3f centerB = voxelB.position / voxelB.pointCount;
+	//float distSq = (centerA - centerB).squaredNorm();
 
-	Eigen::Vector3f nA = (voxelA.normal / voxelA.pointCount).normalized();
-	Eigen::Vector3f nB = (voxelB.normal / voxelB.pointCount).normalized();
+	//if (distSq > kMaxMergeDistance * kMaxMergeDistance) return;
 
-	//const float minDot = 0.45f;
-	//if (nA.dot(nB) < minDot) return;
+	//// 법선 유사도 판단
+	//Eigen::Vector3f nA = (voxelA.normal / voxelA.pointCount).normalized();
+	//Eigen::Vector3f nB = (voxelB.normal / voxelB.pointCount).normalized();
+	//if (nA.dot(nB) < kMinNormalDot) return;
 
+	// 병합
 	if (rootA < rootB)
-	{
 		atomicMin(&voxelB.label, rootA);
-	}
 	else
-	{
 		atomicMin(&voxelA.label, rootB);
-	}
 }
+
 
 __global__ void Kernel_InterVoxelHashMerge26Way(HashMapInfo info)
 {
@@ -688,9 +951,8 @@ vector<unsigned int> PointCloud::Clustering()
 {
 	nvtxRangePushA("Clustering");
 
-	unsigned int numberOfOccupiedVoxels = 0;
-	cudaMemcpy(&numberOfOccupiedVoxels, hashmap.info.d_numberOfOccupiedVoxels, sizeof(unsigned int), cudaMemcpyDeviceToHost);
-
+	unsigned int numberOfOccupiedVoxels = hashmap.info.h_numberOfOccupiedVoxels;
+	
 	vector<unsigned int> labels;
 
 	{

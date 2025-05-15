@@ -165,7 +165,7 @@ __global__ void Kernel_InsertPoints(HashMapInfo info, PointCloudBuffers buffers)
 			int3 existing = info.d_hashTable[slot].coord;
 			if (existing.x == coord.x && existing.y == coord.y && existing.z == coord.z) {
 				info.d_hashTable[slot].normal += Eigen::Vector3f(n.x(), n.y(), n.z());
-				info.d_hashTable[slot].color += Eigen::Vector3b(c.x(), c.y(), c.z());
+				info.d_hashTable[slot].color = Eigen::Vector3b(c.x(), c.y(), c.z());
 				info.d_hashTable[slot].pointCount++;
 				return;
 			}
@@ -182,8 +182,7 @@ void HashMap::InsertPoints(PointCloudBuffers buffers)
 
 	cudaDeviceSynchronize();
 
-	unsigned int numberOfOccupiedVoxels = 0;
-	cudaMemcpy(&numberOfOccupiedVoxels, info.d_numberOfOccupiedVoxels, sizeof(unsigned int), cudaMemcpyDeviceToHost);
+	cudaMemcpy(&info.h_numberOfOccupiedVoxels, info.d_numberOfOccupiedVoxels, sizeof(unsigned int), cudaMemcpyDeviceToHost);
 }
 
 __global__ void Kernel_Serialize(HashMapInfo info, PointCloudBuffers buffers)
@@ -217,8 +216,7 @@ void HashMap::SerializeToPLY(const std::string& filename)
 {
 	PLYFormat ply;
 
-	unsigned int numberOfOccupiedVoxels = 0;
-	cudaMemcpy(&numberOfOccupiedVoxels, info.d_numberOfOccupiedVoxels, sizeof(unsigned int), cudaMemcpyDeviceToHost);
+	unsigned int numberOfOccupiedVoxels = info.h_numberOfOccupiedVoxels;
 
 	PointCloudBuffers d_buffers;
 	d_buffers.Initialize(numberOfOccupiedVoxels, false);

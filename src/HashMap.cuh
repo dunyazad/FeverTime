@@ -31,6 +31,7 @@ struct HashMapVoxel
     unsigned int neighborCount = 0;
     Eigen::Vector3f gradient = Eigen::Vector3f(0.0f, 0.0f, 0.0f);
     float colorDistance = 0.0f;
+    uint8_t normalDiscontinue = 0;
 };
 
 struct PointCloudBuffers
@@ -60,6 +61,7 @@ struct HashMapInfo
 
     HashMapVoxel* d_hashTable = nullptr;
     unsigned int* d_numberOfOccupiedVoxels = nullptr;
+    unsigned int h_numberOfOccupiedVoxels = 0;
     int3* d_occupiedVoxelIndices = nullptr;
 };
 

@@ -13,6 +13,7 @@ public:
 
 	void Clear();
 
+	void FromPointCloudBuffers(PointCloudBuffers* buffers);
 	void FromPointCloud(PointCloud* pointCloud);
 	void FromPointCloud(PointCloud* pointCloud, const Eigen::AlignedBox3f& roi);
 	void CopyFrom(Entity* other);

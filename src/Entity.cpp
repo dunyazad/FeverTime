@@ -34,6 +34,137 @@ void Entity::Clear()
     normalPolyData = nullptr;
 }
 
+void Entity::FromPointCloudBuffers(PointCloudBuffers* buffers)
+{
+    PointCloudBuffers* host_buffers = nullptr;
+
+    if (false == buffers->isHostBuffer)
+    {
+        host_buffers = new PointCloudBuffers();
+        host_buffers->Initialize(buffers->numberOfPoints, true);
+        buffers->CopyTo(*host_buffers);
+    }
+    else
+    {
+        host_buffers = buffers;
+    }
+
+    Clear();
+
+    assembly = vtkSmartPointer<vtkAssembly>::New();
+    renderer->AddActor(assembly);
+
+    actor = vtkSmartPointer<vtkActor>::New();
+    mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+    polyData = vtkSmartPointer<vtkPolyData>::New();
+
+    normalActor = vtkSmartPointer<vtkActor>::New();
+    normalMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+    normalPolyData = vtkSmartPointer<vtkPolyData>::New();
+
+    vtkSmartPointer<vtkPoints> points = vtkSmartPointer<vtkPoints>::New();
+    vtkSmartPointer<vtkFloatArray> normals = vtkSmartPointer<vtkFloatArray>::New();
+    normals->SetNumberOfComponents(3);
+    normals->SetName("Normals");
+
+    vtkSmartPointer<vtkUnsignedCharArray> colors = vtkSmartPointer<vtkUnsignedCharArray>::New();
+    colors->SetNumberOfComponents(4);
+    colors->SetName("Colors");
+
+    vtkSmartPointer<vtkPoints> normalLinesPoints = vtkSmartPointer<vtkPoints>::New();
+    vtkSmartPointer<vtkCellArray> normalLines = vtkSmartPointer<vtkCellArray>::New();
+    vtkSmartPointer<vtkUnsignedCharArray> normalColors = vtkSmartPointer<vtkUnsignedCharArray>::New();
+    normalColors->SetNumberOfComponents(4);
+    normalColors->SetName("Colors");
+
+    const size_t numPoints = host_buffers->numberOfPoints;
+
+    auto vertices = vtkSmartPointer<vtkCellArray>::New();
+
+    for (vtkIdType i = 0; i < numPoints; ++i)
+    {
+        const auto& p = host_buffers->positions[i];
+        const auto& n = host_buffers->normals[i];
+        const auto& c = host_buffers->colors[i];
+
+        points->InsertNextPoint(p.x(), p.y(), p.z());
+        normals->InsertNextTuple3(n.x(), n.y(), n.z());
+
+        unsigned char color[4] = { c.x(), c.y(), c.z(), 255 };
+        colors->InsertNextTypedTuple(color);
+
+        vtkIdType pid = i;
+        vertices->InsertNextCell(1, &pid);
+
+        double startPoint[3] = { p.x(), p.y(), p.z() };
+        double endPoint[3] = {
+            p.x() + n.x() * 0.1,
+            p.y() + n.y() * 0.1,
+            p.z() + n.z() * 0.1
+        };
+
+        vtkIdType idStart = normalLinesPoints->InsertNextPoint(startPoint);
+        vtkIdType idEnd = normalLinesPoints->InsertNextPoint(endPoint);
+
+        vtkSmartPointer<vtkLine> line = vtkSmartPointer<vtkLine>::New();
+        line->GetPointIds()->SetId(0, idStart);
+        line->GetPointIds()->SetId(1, idEnd);
+
+        normalLines->InsertNextCell(line);
+
+        unsigned char endColor[4] = {
+            static_cast<unsigned char>((n.x() * 0.5f + 0.5f) * 255),
+            static_cast<unsigned char>((n.y() * 0.5f + 0.5f) * 255),
+            static_cast<unsigned char>((n.z() * 0.5f + 0.5f) * 255),
+            255
+        };
+        normalColors->InsertNextTypedTuple(color);
+        normalColors->InsertNextTypedTuple(endColor);
+    }
+
+    polyData->SetPoints(points);
+    polyData->SetVerts(vertices);
+    polyData->GetPointData()->SetScalars(colors);
+    polyData->GetPointData()->SetNormals(normals);
+
+    mapper->SetInputData(polyData);
+    mapper->SetScalarModeToUsePointData();
+    mapper->SetColorModeToDirectScalars();
+    mapper->SetScalarVisibility(true);
+
+    actor->SetMapper(mapper);
+    actor->GetProperty()->SetPointSize(2.0f);
+    actor->GetProperty()->SetRepresentationToPoints();
+    actor->GetProperty()->SetLighting(true);
+
+    assembly->AddPart(actor);
+
+    normalPolyData->SetPoints(normalLinesPoints);
+    normalPolyData->SetLines(normalLines);
+    normalPolyData->GetPointData()->SetScalars(normalColors);
+
+    normalMapper->SetInputData(normalPolyData);
+    normalMapper->SetScalarModeToUsePointData();
+    normalMapper->SetColorModeToDirectScalars();
+    normalMapper->SetScalarVisibility(true);
+
+    normalActor->SetMapper(normalMapper);
+    normalActor->GetProperty()->SetLineWidth(2.0f);
+
+    normalActor->SetVisibility(false);
+
+    assembly->AddPart(normalActor);
+
+    assembly->SetVisibility(false);
+
+    if (false == buffers->isHostBuffer)
+    {
+        host_buffers->Terminate();
+
+        delete host_buffers;
+    }
+}
+
 void Entity::FromPointCloud(PointCloud* pointCloud)
 {
     Clear();

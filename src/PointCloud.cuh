@@ -29,8 +29,14 @@ public:
 	bool LoadFromPLY(const string& filename);
 	bool LoadFromALP(const string& filename);
 
+	void SerializeVoxels(PointCloudBuffers& d_tempBuffers);
+	void SerializeVoxelsColoringByLabel(PointCloudBuffers& d_tempBuffers);
+
 	void ComputeNeighborCount();
 	void SerializeColoringByNeighborCount(PointCloudBuffers& d_tempBuffers);
+
+	void ComputeNormalDiscontinuity();
+	void SerializeColoringByNormalDiscontinuity(PointCloudBuffers& d_tempBuffers);
 
 	void ComputeNormalGradient();
 	void SerializeColoringByNormalGradient(float threshold, PointCloudBuffers& d_tempBuffers);

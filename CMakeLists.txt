@@ -45,16 +45,20 @@ vtk_module_autoinit(
 target_include_directories(FeverTime PRIVATE
     "${CMAKE_SOURCE_DIR}/ext/nvapi510/include"
     "${CMAKE_SOURCE_DIR}/ext/eigen"
-    "${CMAKE_SOURCE_DIR}/ext/asio/asio/include"
-    "${CMAKE_SOURCE_DIR}/ext/websocketpp"
+    "${CMAKE_SOURCE_DIR}/ext/libwebsockets/include"
     "${CMAKE_SOURCE_DIR}/src"
 )
 
 # NVAPI 설정
 target_link_directories(FeverTime PRIVATE
     "${CMAKE_SOURCE_DIR}/ext/nvapi510/amd64"
+    "${CMAKE_SOURCE_DIR}/ext/libwebsockets/lib"
 )
-target_link_libraries(FeverTime PRIVATE nvapi64)
+
+target_link_libraries(FeverTime PRIVATE
+    nvapi64
+    websockets_static
+)
 
 # 공통 출력 디렉토리 설정
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin")
