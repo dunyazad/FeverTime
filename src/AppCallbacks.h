@@ -33,6 +33,4 @@ public:
     void Execute(vtkObject* caller, unsigned long eventId, void* callData) override;
 
     PointCloud* pointCloud;
-
-    float normalGradientThreshold = 0.05f;
 };

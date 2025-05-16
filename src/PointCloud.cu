@@ -74,6 +74,76 @@ bool PointCloud::LoadFromPLY(const std::string& filename)
 	return true;
 }
 
+bool PointCloud::LoadFromPLY(const string& filename, const Eigen::AlignedBox3f& roi)
+{
+	PLYFormat ply;
+	if (false == ply.Deserialize(filename))
+	{
+		return false;
+	}
+
+	unsigned int numberOfPoints = 0;
+
+	for (size_t i = 0; i < ply.GetPoints().size() / 3; i++)
+	{
+		auto x = ply.GetPoints()[i * 3];
+		auto y = ply.GetPoints()[i * 3 + 1];
+		auto z = ply.GetPoints()[i * 3 + 2];
+
+		if (roi.contains(Eigen::Vector3f(x, y, z))) numberOfPoints++;
+	}
+
+	Initialize(numberOfPoints);
+
+	unsigned int bufferIndex = 0;
+	for (size_t i = 0; i < ply.GetPoints().size() / 3; i++)
+	{
+		auto x = ply.GetPoints()[i * 3];
+		auto y = ply.GetPoints()[i * 3 + 1];
+		auto z = ply.GetPoints()[i * 3 + 2];
+
+		if(false == roi.contains(Eigen::Vector3f(x,y,z))) continue;
+
+		auto nx = ply.GetNormals()[i * 3];
+		auto ny = ply.GetNormals()[i * 3 + 1];
+		auto nz = ply.GetNormals()[i * 3 + 2];
+
+		auto r = ply.GetColors()[i * 3];
+		auto g = ply.GetColors()[i * 3 + 1];
+		auto b = ply.GetColors()[i * 3 + 2];
+
+		h_buffers.positions[bufferIndex] = Eigen::Vector3f(x, y, z);
+		h_buffers.normals[bufferIndex] = Eigen::Vector3f(nx, ny, nz);
+		h_buffers.colors[bufferIndex] = Eigen::Vector3b(r * 255.0f, g * 255.0f, b * 255.0f);
+
+		h_buffers.aabb.extend(Eigen::Vector3f(x, y, z));
+
+		bufferIndex++;
+	}
+
+	HtoD();
+
+	hashmap.InsertPoints(d_buffers);
+
+	return true;
+}
+
+bool PointCloud::SaveToPLY(const std::string& filename)
+{
+	PLYFormat ply;
+
+	for (size_t i = 0; i < h_buffers.numberOfPoints; i++)
+	{
+		ply.AddPointFloat3(h_buffers.positions[i].data());
+		ply.AddNormalFloat3(h_buffers.normals[i].data());
+		ply.AddColor(h_buffers.colors[i].x(), h_buffers.colors[i].y(), h_buffers.colors[i].z());
+	}
+
+	ply.Serialize(filename);
+
+	return true;
+}
+
 bool PointCloud::LoadFromALP(const std::string& filename)
 {
 	ALPFormat<PointPNC> alp;
@@ -107,9 +177,183 @@ bool PointCloud::LoadFromALP(const std::string& filename)
 	return true;
 }
 
+bool PointCloud::LoadFromALP(const string& filename, const Eigen::AlignedBox3f& roi)
+{
+	ALPFormat<PointPNC> alp;
+	if (false == alp.Deserialize(filename))
+	{
+		return false;
+	}
 
+	unsigned int numberOfPoints = 0;
 
+	for (size_t i = 0; i < alp.GetPoints().size(); i++)
+	{
+		auto& p = alp.GetPoints()[i];
 
+		if (roi.contains(Eigen::Vector3f(p.position.x, p.position.y, p.position.z))) numberOfPoints++;
+	}
+
+	Initialize(numberOfPoints);
+
+	unsigned int bufferIndex = 0;
+	for (size_t i = 0; i < alp.GetPoints().size(); i++)
+	{
+		auto& p = alp.GetPoints()[i];
+
+		if (false == roi.contains(Eigen::Vector3f(p.position.x, p.position.y, p.position.z))) continue;
+
+		h_buffers.positions[bufferIndex] = Eigen::Vector3f(p.position.x, p.position.y, p.position.z);
+		h_buffers.normals[bufferIndex] = Eigen::Vector3f(p.normal.x, p.normal.y, p.normal.z);
+		h_buffers.colors[bufferIndex] = Eigen::Vector3b(p.color.x * 255.0f, p.color.y * 255.0f, p.color.z * 255.0f);
+
+		h_buffers.aabb.extend(Eigen::Vector3f(p.position.x, p.position.y, p.position.z));
+
+		bufferIndex++;
+	}
+
+	HtoD();
+
+	hashmap.InsertPoints(d_buffers);
+
+	//hashmap.SerializeToPLY("../../res/test.ply");
+
+	return true;
+}
+
+bool PointCloud::SaveToALP(const std::string& filename)
+{
+	ALPFormat<PointPNC> alp;
+	
+	for (size_t i = 0; i < h_buffers.numberOfPoints; i++)
+	{
+		PointPNC p;
+		p.position = make_float3(h_buffers.positions[i].x(), h_buffers.positions[i].y(), h_buffers.positions[i].z());
+		p.normal = make_float3(h_buffers.normals[i].x(), h_buffers.normals[i].y(), h_buffers.normals[i].z());
+		p.color = make_float3((float)h_buffers.colors[i].x() / 255.0f, (float)h_buffers.colors[i].y() / 255.0f, (float)h_buffers.colors[i].z() / 255.0f);
+		
+		alp.AddPoint(p);
+	}
+
+	alp.Serialize(filename);
+
+	return true;
+}
+
+__global__ void Kernel_ComputeVoxelNormalPCA(HashMapInfo info)
+{
+	unsigned int threadid = blockDim.x * blockIdx.x + threadIdx.x;
+	if (threadid >= *info.d_numberOfOccupiedVoxels) return;
+
+	int3 coord = info.d_occupiedVoxelIndices[threadid];
+	size_t slot = GetVoxelSlot(info, coord);
+	if (slot == UINT64_MAX) return;
+
+	HashMapVoxel* centerVoxel = GetVoxel(info, slot);
+	if (centerVoxel == nullptr || centerVoxel->label == 0) return;
+
+	auto centerPosition = Eigen::Vector3f(
+		coord.x * info.voxelSize,
+		coord.y * info.voxelSize,
+		coord.z * info.voxelSize);
+
+	Eigen::Matrix3f cov = Eigen::Matrix3f::Zero();
+	unsigned int neighborCount = 0;
+#pragma unroll
+	for (int ni = 0; ni < 124; ++ni)
+	{
+		int3 neighborCoord = make_int3(
+			coord.x + neighbor_offsets_124[ni].x,
+			coord.y + neighbor_offsets_124[ni].y,
+			coord.z + neighbor_offsets_124[ni].z);
+
+		size_t neighborSlot = GetVoxelSlot(info, neighborCoord);
+		HashMapVoxel* neighborVoxel = GetVoxel(info, neighborSlot);
+
+		if (neighborVoxel == nullptr) continue;
+
+		auto neighborPosition = Eigen::Vector3f(
+			neighborCoord.x * info.voxelSize,
+			neighborCoord.y * info.voxelSize,
+			neighborCoord.z * info.voxelSize);
+
+		Eigen::Vector3f d = neighborPosition - centerPosition;
+		cov += d * d.transpose();
+		neighborCount++;
+	}
+
+	cov /= (float)neighborCount;
+	Eigen::SelfAdjointEigenSolver<Eigen::Matrix3f> solver(cov);
+	centerVoxel->normal = solver.eigenvectors().col(0);
+}
+
+void PointCloud::ComputeVoxelNormalPCA()
+{
+	nvtxRangePushA("Compute Voxel Normal PCA");
+
+	unsigned int numberOfOccupiedVoxels = hashmap.info.h_numberOfOccupiedVoxels;
+
+	unsigned int blockSize = 256;
+	unsigned int gridOccupied = (numberOfOccupiedVoxels + blockSize - 1) / blockSize;
+
+	Kernel_ComputeVoxelNormalPCA << <gridOccupied, blockSize >> > (hashmap.info);
+
+	cudaDeviceSynchronize();
+
+	nvtxRangePop();
+}
+
+__global__ void Kernel_ComputeVoxelNormalAverage(HashMapInfo info)
+{
+	unsigned int threadid = blockDim.x * blockIdx.x + threadIdx.x;
+	if (threadid >= *info.d_numberOfOccupiedVoxels) return;
+
+	int3 coord = info.d_occupiedVoxelIndices[threadid];
+	size_t slot = GetVoxelSlot(info, coord);
+	if (slot == UINT64_MAX) return;
+
+	HashMapVoxel* centerVoxel = GetVoxel(info, slot);
+	if (centerVoxel == nullptr || centerVoxel->label == 0) return;
+
+	Eigen::Vector3f normal = Eigen::Vector3f::Zero();
+	unsigned int neighborCount = 0;
+#pragma unroll
+	for (int ni = 0; ni < 124; ++ni)
+	{
+		int3 neighborCoord = make_int3(
+			coord.x + neighbor_offsets_124[ni].x,
+			coord.y + neighbor_offsets_124[ni].y,
+			coord.z + neighbor_offsets_124[ni].z);
+
+		size_t neighborSlot = GetVoxelSlot(info, neighborCoord);
+		HashMapVoxel* neighborVoxel = GetVoxel(info, neighborSlot);
+
+		if (neighborVoxel == nullptr) continue;
+
+		auto neighborNormal = (neighborVoxel->normal / (float)neighborVoxel->pointCount).normalized();
+
+		normal += neighborNormal;
+		neighborCount++;
+	}
+
+	centerVoxel->normal = normal / (float)neighborCount++;
+}
+
+void PointCloud::ComputeVoxelNormalAverage()
+{
+	nvtxRangePushA("Compute Voxel Normal Average");
+
+	unsigned int numberOfOccupiedVoxels = hashmap.info.h_numberOfOccupiedVoxels;
+
+	unsigned int blockSize = 256;
+	unsigned int gridOccupied = (numberOfOccupiedVoxels + blockSize - 1) / blockSize;
+
+	Kernel_ComputeVoxelNormalAverage << <gridOccupied, blockSize >> > (hashmap.info);
+
+	cudaDeviceSynchronize();
+
+	nvtxRangePop();
+}
 
 __global__ void Kernel_SerializeVoxels(HashMapInfo info, PointCloudBuffers buffers)
 {
@@ -203,23 +447,13 @@ __global__ void Kernel_ComputeNeighborCount(HashMapInfo info)
 	HashMapVoxel* centerVoxel = GetVoxel(info, slot);
 	if (centerVoxel == nullptr || centerVoxel->label == 0) return;
 
-	const int3 offsets[26] =
-	{
-		{1,0,0}, {-1,0,0}, {0,1,0}, {0,-1,0}, {0,0,1}, {0,0,-1},
-		{1,1,0}, {1,-1,0}, {-1,1,0}, {-1,-1,0},
-		{1,0,1}, {1,0,-1}, {-1,0,1}, {-1,0,-1},
-		{0,1,1}, {0,1,-1}, {0,-1,1}, {0,-1,-1},
-		{1,1,1}, {1,1,-1}, {1,-1,1}, {1,-1,-1},
-		{-1,1,1}, {-1,1,-1}, {-1,-1,1}, {-1,-1,-1}
-	};
-
 #pragma unroll
 	for (int ni = 0; ni < 26; ++ni)
 	{
 		int3 neighborCoord = make_int3(
-			coord.x + offsets[ni].x,
-			coord.y + offsets[ni].y,
-			coord.z + offsets[ni].z);
+			coord.x + neighbor_offsets_26[ni].x,
+			coord.y + neighbor_offsets_26[ni].y,
+			coord.z + neighbor_offsets_26[ni].z);
 
 		size_t neighborSlot = GetVoxelSlot(info, neighborCoord);
 		HashMapVoxel* neighborVoxel = GetVoxel(info, neighborSlot);
@@ -321,8 +555,21 @@ void PointCloud::SerializeColoringByNeighborCount(PointCloudBuffers& d_tempBuffe
 
 
 
+__global__ void Kernel_ClearNormalDiscontinuity(HashMapInfo info)
+{
+	unsigned int threadid = blockDim.x * blockIdx.x + threadIdx.x;
+	if (threadid >= *info.d_numberOfOccupiedVoxels) return;
 
-__global__ void Kernel_ComputeNormalDiscontinuity(HashMapInfo info)
+	int3 coord = info.d_occupiedVoxelIndices[threadid];
+	size_t slot = GetVoxelSlot(info, coord);
+	if (slot == UINT64_MAX) return;
+
+	auto voxel = GetVoxel(info, slot);
+
+	voxel->normalDiscontinue = 0;
+}
+
+__global__ void Kernel_ComputeNormalDiscontinuity(HashMapInfo info, float normalDiscontinuityThreshold)
 {
 	unsigned int threadid = blockDim.x * blockIdx.x + threadIdx.x;
 	if (threadid >= *info.d_numberOfOccupiedVoxels) return;
@@ -336,23 +583,13 @@ __global__ void Kernel_ComputeNormalDiscontinuity(HashMapInfo info)
 
 	auto centerNormal = (centerVoxel->normal / (float)centerVoxel->pointCount).normalized();
 
-	const int3 offsets[26] =
-	{
-		{1,0,0}, {-1,0,0}, {0,1,0}, {0,-1,0}, {0,0,1}, {0,0,-1},
-		{1,1,0}, {1,-1,0}, {-1,1,0}, {-1,-1,0},
-		{1,0,1}, {1,0,-1}, {-1,0,1}, {-1,0,-1},
-		{0,1,1}, {0,1,-1}, {0,-1,1}, {0,-1,-1},
-		{1,1,1}, {1,1,-1}, {1,-1,1}, {1,-1,-1},
-		{-1,1,1}, {-1,1,-1}, {-1,-1,1}, {-1,-1,-1}
-	};
-
 #pragma unroll
 	for (int ni = 0; ni < 26; ++ni)
 	{
 		int3 neighborCoord = make_int3(
-			coord.x + offsets[ni].x,
-			coord.y + offsets[ni].y,
-			coord.z + offsets[ni].z);
+			coord.x + neighbor_offsets_26[ni].x,
+			coord.y + neighbor_offsets_26[ni].y,
+			coord.z + neighbor_offsets_26[ni].z);
 
 		size_t neighborSlot = GetVoxelSlot(info, neighborCoord);
 		HashMapVoxel* neighborVoxel = GetVoxel(info, neighborSlot);
@@ -361,30 +598,37 @@ __global__ void Kernel_ComputeNormalDiscontinuity(HashMapInfo info)
 
 		auto neighborNormal = (neighborVoxel->normal / (float)neighborVoxel->pointCount).normalized();
 
-		auto similarity = centerNormal.dot(neighborNormal);
+		if (cosf(normalDiscontinuityThreshold * M_PI / 180.0f) < centerNormal.dot(neighborNormal)) continue;
 
-		if (0.9f > similarity)
-		{
-			//printf("similarity : %f\n", similarity);
-
-			centerVoxel->normalDiscontinue = 1;
-			return;
-		}
+		centerVoxel->normalDiscontinue = 1;
+		
+		return;
 	}
 }
 
-void PointCloud::ComputeNormalDiscontinuity()
+void PointCloud::ComputeNormalDiscontinuity(float normalDiscontinuityThreshold)
 {
 	nvtxRangePushA("NormalDiscontinuity");
 
 	unsigned int numberOfOccupiedVoxels = hashmap.info.h_numberOfOccupiedVoxels;
 
-	unsigned int blockSize = 256;
-	unsigned int gridOccupied = (numberOfOccupiedVoxels + blockSize - 1) / blockSize;
+	{
+		unsigned int blockSize = 256;
+		unsigned int gridOccupied = (numberOfOccupiedVoxels + blockSize - 1) / blockSize;
 
-	Kernel_ComputeNormalDiscontinuity << <gridOccupied, blockSize >> > (hashmap.info);
+		Kernel_ClearNormalDiscontinuity << <gridOccupied, blockSize >> > (hashmap.info);
 
-	cudaDeviceSynchronize();
+		cudaDeviceSynchronize();
+	}
+
+	{
+		unsigned int blockSize = 256;
+		unsigned int gridOccupied = (numberOfOccupiedVoxels + blockSize - 1) / blockSize;
+
+		Kernel_ComputeNormalDiscontinuity << <gridOccupied, blockSize >> > (hashmap.info, normalDiscontinuityThreshold);
+
+		cudaDeviceSynchronize();
+	}
 }
 
 __global__ void Kernel_SerializeColoringByNormalDiscontinuity(HashMapInfo info, PointCloudBuffers buffers)
@@ -438,16 +682,6 @@ __global__ void Kernel_ComputeNormalGradient(HashMapInfo info)
 	HashMapVoxel* centerVoxel = GetVoxel(info, slot);
 	if (centerVoxel == nullptr || centerVoxel->label == 0) return;
 
-	const int3 offsets[26] =
-	{
-		{1,0,0}, {-1,0,0}, {0,1,0}, {0,-1,0}, {0,0,1}, {0,0,-1},
-		{1,1,0}, {1,-1,0}, {-1,1,0}, {-1,-1,0},
-		{1,0,1}, {1,0,-1}, {-1,0,1}, {-1,0,-1},
-		{0,1,1}, {0,1,-1}, {0,-1,1}, {0,-1,-1},
-		{1,1,1}, {1,1,-1}, {1,-1,1}, {1,-1,-1},
-		{-1,1,1}, {-1,1,-1}, {-1,-1,1}, {-1,-1,-1}
-	};
-
 	int count = 0;
 	centerVoxel->gradient = Eigen::Vector3f(0.0f, 0.0f, 0.0f);
 
@@ -455,9 +689,9 @@ __global__ void Kernel_ComputeNormalGradient(HashMapInfo info)
 	for (int ni = 0; ni < 26; ++ni)
 	{
 		int3 neighborCoord = make_int3(
-			coord.x + offsets[ni].x,
-			coord.y + offsets[ni].y,
-			coord.z + offsets[ni].z);
+			coord.x + neighbor_offsets_26[ni].x,
+			coord.y + neighbor_offsets_26[ni].y,
+			coord.z + neighbor_offsets_26[ni].z);
 
 		size_t neighborSlot = GetVoxelSlot(info, neighborCoord);
 		HashMapVoxel* neighborVoxel = GetVoxel(info, neighborSlot);
@@ -651,23 +885,13 @@ __global__ void Kernel_ComputeColorMultiplication(HashMapInfo info)
 	HashMapVoxel* centerVoxel = GetVoxel(info, slot);
 	if (centerVoxel == nullptr || centerVoxel->label == 0) return;
 
-	const int3 offsets[26] =
-	{
-		{1,0,0}, {-1,0,0}, {0,1,0}, {0,-1,0}, {0,0,1}, {0,0,-1},
-		{1,1,0}, {1,-1,0}, {-1,1,0}, {-1,-1,0},
-		{1,0,1}, {1,0,-1}, {-1,0,1}, {-1,0,-1},
-		{0,1,1}, {0,1,-1}, {0,-1,1}, {0,-1,-1},
-		{1,1,1}, {1,1,-1}, {1,-1,1}, {1,-1,-1},
-		{-1,1,1}, {-1,1,-1}, {-1,-1,1}, {-1,-1,-1}
-	};
-
 #pragma unroll
 	for (int ni = 0; ni < 26; ++ni)
 	{
 		int3 neighborCoord = make_int3(
-			coord.x + offsets[ni].x,
-			coord.y + offsets[ni].y,
-			coord.z + offsets[ni].z);
+			coord.x + neighbor_offsets_26[ni].x,
+			coord.y + neighbor_offsets_26[ni].y,
+			coord.z + neighbor_offsets_26[ni].z);
 
 		size_t neighborSlot = GetVoxelSlot(info, neighborCoord);
 		HashMapVoxel* neighborVoxel = GetVoxel(info, neighborSlot);
@@ -741,33 +965,6 @@ void PointCloud::SerializeColoringByColorMultiplication(float threshold, PointCl
 
 
 
-//constexpr float kMaxMergeDistance = 10.0f; // meter 단위로 적절히 조절
-constexpr float kMinNormalDot = 0.0f;      // 약 45도 이하만 병합 허용
-
-//__device__ __forceinline__ unsigned int FindRootVoxel(HashMapInfo info, unsigned int idx)
-//{
-//	while (info.d_hashTable[idx].label != idx)
-//	{
-//		unsigned int parent = info.d_hashTable[idx].label;
-//		unsigned int grandparent = info.d_hashTable[parent].label;
-//
-//		//auto& voxelA = info.d_hashTable[idx];
-//		//auto& voxelB = info.d_hashTable[parent];
-//
-//		//Eigen::Vector3f nA = (voxelA.normal / voxelA.pointCount).normalized();
-//		//Eigen::Vector3f nB = (voxelB.normal / voxelB.pointCount).normalized();
-//		//
-//		//const float minDot = 0.0f;
-//		//if (nA.dot(nB) < minDot) return idx;
-//
-//		if (parent != grandparent)
-//			info.d_hashTable[idx].label = grandparent;
-//
-//		idx = info.d_hashTable[idx].label;
-//	}
-//	return idx;
-//}
-
 __device__ __forceinline__ unsigned int FindRootVoxel(HashMapInfo info, unsigned int idx)
 {
 	while (info.d_hashTable[idx].label != idx)
@@ -798,36 +995,6 @@ __device__ __forceinline__ unsigned int FindRootVoxel(HashMapInfo info, unsigned
 	return idx;
 }
 
-
-//__device__ __forceinline__ void UnionVoxel(HashMapInfo info, unsigned int a, unsigned int b)
-//{
-//	unsigned int rootA = FindRootVoxel(info, a);
-//	unsigned int rootB = FindRootVoxel(info, b);
-//
-//	if (rootA == rootB) return;
-//
-//	auto& voxelA = info.d_hashTable[rootA];
-//	auto& voxelB = info.d_hashTable[rootB];
-//
-//	////if (0.025f < voxelA.gradient.norm()) return;
-//	////if (0.025f < voxelB.gradient.norm()) return;
-//
-//	//Eigen::Vector3f nA = (voxelA.normal / voxelA.pointCount).normalized();
-//	//Eigen::Vector3f nB = (voxelB.normal / voxelB.pointCount).normalized();
-//
-//	//const float minDot = 0.0f;
-//	//if (nA.dot(nB) < minDot) return;
-//
-//	if (rootA < rootB)
-//	{
-//		atomicMin(&voxelB.label, rootA);
-//	}
-//	else
-//	{
-//		atomicMin(&voxelA.label, rootB);
-//	}
-//}
-
 __device__ __forceinline__ void UnionVoxel(HashMapInfo info, unsigned int a, unsigned int b)
 {
 	unsigned int rootA = FindRootVoxel(info, a);
@@ -836,6 +1003,17 @@ __device__ __forceinline__ void UnionVoxel(HashMapInfo info, unsigned int a, uns
 
 	auto& voxelA = info.d_hashTable[rootA];
 	auto& voxelB = info.d_hashTable[rootB];
+
+	//auto dx = abs(voxelA.coord.x - voxelB.coord.x);
+	//auto dy = abs(voxelA.coord.y - voxelB.coord.y);
+	//auto dz = abs(voxelA.coord.z - voxelB.coord.z);
+	//if (dx >= 2 || dy >= 2 || dz >= 2)
+	//{
+	//	printf("??????????\n");
+	//	return;
+	//}
+
+
 
 	//// 중심 좌표 계산
 	//Eigen::Vector3f centerA = voxelA.position / voxelA.pointCount;
@@ -856,8 +1034,21 @@ __device__ __forceinline__ void UnionVoxel(HashMapInfo info, unsigned int a, uns
 		atomicMin(&voxelA.label, rootB);
 }
 
+__global__ void Kernel_ClearLabels(HashMapInfo info)
+{
+	unsigned int threadid = blockDim.x * blockIdx.x + threadIdx.x;
+	if (threadid >= *info.d_numberOfOccupiedVoxels) return;
 
-__global__ void Kernel_InterVoxelHashMerge26Way(HashMapInfo info)
+	int3 coord = info.d_occupiedVoxelIndices[threadid];
+	size_t slot = GetVoxelSlot(info, coord);
+	if (slot == UINT64_MAX) return;
+	
+	auto voxel = GetVoxel(info, slot);
+
+	voxel->label = slot;
+}
+
+__global__ void Kernel_InterVoxelHashMerge26Way(HashMapInfo info, float normalDegreeThreshold)
 {
 	unsigned int threadid = blockDim.x * blockIdx.x + threadIdx.x;
 	if (threadid >= *info.d_numberOfOccupiedVoxels) return;
@@ -867,31 +1058,29 @@ __global__ void Kernel_InterVoxelHashMerge26Way(HashMapInfo info)
 	if (slot == UINT64_MAX) return;
 
 	HashMapVoxel* centerVoxel = GetVoxel(info, slot);
-	if (centerVoxel == nullptr || centerVoxel->label == 0) return;
+	//if (centerVoxel == nullptr || centerVoxel->label == 0) return;
+	if (centerVoxel == nullptr) return;
 
-	const int3 offsets[26] =
-	{
-		{1,0,0}, {-1,0,0}, {0,1,0}, {0,-1,0}, {0,0,1}, {0,0,-1},
-		{1,1,0}, {1,-1,0}, {-1,1,0}, {-1,-1,0},
-		{1,0,1}, {1,0,-1}, {-1,0,1}, {-1,0,-1},
-		{0,1,1}, {0,1,-1}, {0,-1,1}, {0,-1,-1},
-		{1,1,1}, {1,1,-1}, {1,-1,1}, {1,-1,-1},
-		{-1,1,1}, {-1,1,-1}, {-1,-1,1}, {-1,-1,-1}
-	};
+	auto centerNormal = (centerVoxel->normal / (float)centerVoxel->pointCount).normalized();
 
 #pragma unroll
 	for (int ni = 0; ni < 26; ++ni)
 	{
 		int3 neighborCoord = make_int3(
-			coord.x + offsets[ni].x,
-			coord.y + offsets[ni].y,
-			coord.z + offsets[ni].z);
+			coord.x + neighbor_offsets_26[ni].x,
+			coord.y + neighbor_offsets_26[ni].y,
+			coord.z + neighbor_offsets_26[ni].z);
 
 		size_t neighborSlot = GetVoxelSlot(info, neighborCoord);
 		HashMapVoxel* neighborVoxel = GetVoxel(info, neighborSlot);
-
-		if (neighborVoxel && neighborVoxel->label != 0)
+ 
+		//if (neighborVoxel && neighborVoxel->label != 0)
+		if (neighborVoxel)
 		{
+			auto neighborNormal = (neighborVoxel->normal / (float)neighborVoxel->pointCount).normalized();
+
+			if (cosf(normalDegreeThreshold * M_PI / 180.0f) > centerNormal.dot(neighborNormal)) continue;
+
 			UnionVoxel(info, slot, neighborSlot);
 		}
 	}
@@ -947,7 +1136,7 @@ __global__ void Kernel_GetLabels(HashMapInfo info, Eigen::Vector3f* points, unsi
 	}
 }
 
-vector<unsigned int> PointCloud::Clustering()
+vector<unsigned int> PointCloud::Clustering(float normalDegreeThreshold)
 {
 	nvtxRangePushA("Clustering");
 
@@ -959,7 +1148,16 @@ vector<unsigned int> PointCloud::Clustering()
 		unsigned int blockSize = 256;
 		unsigned int gridOccupied = (numberOfOccupiedVoxels + blockSize - 1) / blockSize;
 
-		Kernel_InterVoxelHashMerge26Way << <gridOccupied, blockSize >> > (hashmap.info);
+		Kernel_ClearLabels << <gridOccupied, blockSize >> > (hashmap.info);
+
+		cudaDeviceSynchronize();
+	}
+
+	{
+		unsigned int blockSize = 256;
+		unsigned int gridOccupied = (numberOfOccupiedVoxels + blockSize - 1) / blockSize;
+
+		Kernel_InterVoxelHashMerge26Way << <gridOccupied, blockSize >> > (hashmap.info, normalDegreeThreshold);
 
 		cudaDeviceSynchronize();
 	}

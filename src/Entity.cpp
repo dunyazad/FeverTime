@@ -1,8 +1,8 @@
 #include <Entity.h>
 #include <PointCloud.cuh>
 
-Entity::Entity(vtkSmartPointer<vtkRenderer> renderer)
-    : renderer(renderer)
+Entity::Entity(vtkSmartPointer<vtkRenderer> renderer, const string& name)
+    : renderer(renderer), name(name)
 {
 }
 

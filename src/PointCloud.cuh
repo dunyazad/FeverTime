@@ -1,6 +1,6 @@
 #pragma once
 
-#include <cudaHeaderFiles.h>
+#include <cudaCommon.h>
 #include <stdHeaderFiles.h>
 
 #include <Eigen/Core>
@@ -27,7 +27,17 @@ public:
 	void DtoH();
 
 	bool LoadFromPLY(const string& filename);
+	bool LoadFromPLY(const string& filename, const Eigen::AlignedBox3f& roi);
+
+	bool SaveToPLY(const string& filename);
+	
 	bool LoadFromALP(const string& filename);
+	bool LoadFromALP(const string& filename, const Eigen::AlignedBox3f& roi);
+
+	bool SaveToALP(const string& filename);
+
+	void ComputeVoxelNormalPCA();
+	void ComputeVoxelNormalAverage();
 
 	void SerializeVoxels(PointCloudBuffers& d_tempBuffers);
 	void SerializeVoxelsColoringByLabel(PointCloudBuffers& d_tempBuffers);
@@ -35,7 +45,7 @@ public:
 	void ComputeNeighborCount();
 	void SerializeColoringByNeighborCount(PointCloudBuffers& d_tempBuffers);
 
-	void ComputeNormalDiscontinuity();
+	void ComputeNormalDiscontinuity(float normalDiscontinuityThreshold = 10.0f);
 	void SerializeColoringByNormalDiscontinuity(PointCloudBuffers& d_tempBuffers);
 
 	void ComputeNormalGradient();
@@ -47,7 +57,7 @@ public:
 	void ComputeColorMultiplication();
 	void SerializeColoringByColorMultiplication(float threshold, PointCloudBuffers& d_tempBuffers);
 
-	vector<unsigned int> Clustering();
+	vector<unsigned int> Clustering(float normalDegreeThreshold = 10.0f);
 
 	void SerializeColoringByLabel(PointCloudBuffers& d_tempBuffers);
 

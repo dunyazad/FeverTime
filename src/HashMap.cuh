@@ -1,6 +1,6 @@
 #pragma once
 
-#include <cudaHeaderFiles.h>
+#include <cudaCommon.h>
 #include <stdHeaderFiles.h>
 
 #include <Eigen/Core>

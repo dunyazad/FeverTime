@@ -39,7 +39,7 @@ void findTopTwo(const map<uint3, unsigned int>& colorHistogram) {
 }
 
 
-const string resource_file_name = "Compound";
+const string resource_file_name = "Compound_Full";
 const string resource_file_name_ply = "../../res/3D/" + resource_file_name + ".ply";
 const string resource_file_name_alp = "../../res/3D/" + resource_file_name + ".alp";
 
@@ -69,11 +69,17 @@ int main(int argc, char** argv)
 
         app.GetRenderer()->SetBackground(0.3, 0.5, 0.7);
 
-        if (false == pointCloud.LoadFromALP(resource_file_name_alp))
+        auto roi = Eigen::AlignedBox3f(Eigen::Vector3f(0.0f, -60.0f, -5.0f), Eigen::Vector3f(20.0f, -30.0f, 25.0f));
+
+        if (false == pointCloud.LoadFromALP(resource_file_name_alp, roi))
         {
-            if (false == pointCloud.LoadFromPLY(resource_file_name_ply))
+            if (false == pointCloud.LoadFromPLY(resource_file_name_ply, roi))
             {
                 return;
+            }
+            else
+            {
+                pointCloud.SaveToALP(resource_file_name_alp);
             }
         }
 
@@ -93,17 +99,20 @@ int main(int argc, char** argv)
         //}
 
         auto defaultEntity = app.CreateEntity("Default");
-        auto roi = Eigen::AlignedBox3f(Eigen::Vector3f(0.0f, -60.0f, -5.0f), Eigen::Vector3f(20.0f, -30.0f, 25.0f));
-        defaultEntity->FromPointCloud(&pointCloud, roi);
+        //defaultEntity->FromPointCloud(&pointCloud, roi);
+        defaultEntity->FromPointCloud(&pointCloud);
 
         app.GetRenderer()->ResetCamera();
         app.GetRenderWindow()->Render();
+
+        //pointCloud.ComputeVoxelNormalPCA();
+        pointCloud.ComputeVoxelNormalAverage();
 
         {
             auto entity = app.CreateEntity("Clustering");
             entity->CopyFrom(defaultEntity);
 
-            pointCloud.Clustering();
+            pointCloud.Clustering(10.0f);
 
             PointCloudBuffers d_tempBuffers;
             d_tempBuffers.Initialize(pointCloud.GetNumberOfPoints(), false);
@@ -120,19 +129,6 @@ int main(int argc, char** argv)
             h_tempBuffers.Terminate();
 
             entity->SetVisibility(false);
-        }
-
-        {
-            auto entity = app.CreateEntity("Voxels");
-
-            PointCloudBuffers d_tempBuffers;
-            d_tempBuffers.Initialize(pointCloud.GetNumberOfPoints(), false);
-
-            pointCloud.SerializeVoxelsColoringByLabel(d_tempBuffers);
-
-            entity->FromPointCloudBuffers(&d_tempBuffers);
-
-            d_tempBuffers.Terminate();
         }
 
         /*
@@ -159,6 +155,42 @@ int main(int argc, char** argv)
             entity->SetVisibility(false);
         }
         */
+
+        {
+            auto entity = app.CreateEntity("Normal Divergence");
+            entity->CopyFrom(defaultEntity);
+
+            pointCloud.ComputeNormalDivergence();
+
+            PointCloudBuffers d_tempBuffers;
+            d_tempBuffers.Initialize(pointCloud.GetNumberOfPoints(), false);
+
+            pointCloud.SerializeColoringByNormalDivergence(1.0f, d_tempBuffers);
+
+            PointCloudBuffers h_tempBuffers;
+            h_tempBuffers.Initialize(pointCloud.GetNumberOfPoints(), true);
+            d_tempBuffers.CopyTo(h_tempBuffers);
+
+            entity->UpdateColorFromBuffer(h_tempBuffers);
+
+            d_tempBuffers.Terminate();
+            h_tempBuffers.Terminate();
+
+            entity->SetVisibility(false);
+        }
+        
+        {
+            auto entity = app.CreateEntity("Voxels");
+
+            PointCloudBuffers d_tempBuffers;
+            d_tempBuffers.Initialize(pointCloud.GetNumberOfPoints(), false);
+
+            pointCloud.SerializeVoxelsColoringByLabel(d_tempBuffers);
+
+            entity->FromPointCloudBuffers(&d_tempBuffers);
+
+            d_tempBuffers.Terminate();
+        }
 
         /*
         {

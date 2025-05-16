@@ -103,99 +103,169 @@ void KeyPressCallback::Execute(vtkObject* caller, unsigned long eventId, void* c
     }
     else if (key == "Prior")
     {
-        normalGradientThreshold += 0.005f;
-        printf("ormalGradientThreshold : %f\n", normalGradientThreshold);
+        auto entity = app->GetActiveEntity();
+        if(nullptr != entity)
+        {
+            if ("Clustering" == entity->GetName())
+            {
+                auto degree = app->GetClusteringDegree();
+                degree += 1.0f;
 
-        //{ // Normal Gradient
-        //    pointCloud->ComputeNormalGradient();
+                printf("Clustering Degree : %f = %f\n", degree, degree * M_PI / 180);
 
-        //    PointCloudBuffers d_tempBuffers;
-        //    d_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), false);
+                app->SetClusteringDegree(degree);
 
-        //    pointCloud->SerializeColoringByNormalGradient(normalGradientThreshold, d_tempBuffers);
+                pointCloud->Clustering(degree);
 
-        //    PointCloudBuffers h_tempBuffers;
-        //    h_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), true);
+                PointCloudBuffers d_tempBuffers;
+                d_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), false);
 
-        //    d_tempBuffers.CopyTo(h_tempBuffers);
+                pointCloud->SerializeColoringByLabel(d_tempBuffers);
 
-        //    vtkSmartPointer<vtkUnsignedCharArray> clusteringColors = vtkSmartPointer<vtkUnsignedCharArray>::New();
-        //    clusteringColors->SetNumberOfComponents(4);
-        //    clusteringColors->SetName("Colors");
+                PointCloudBuffers h_tempBuffers;
+                h_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), true);
+                d_tempBuffers.CopyTo(h_tempBuffers);
 
-        //    auto vertices = vtkSmartPointer<vtkCellArray>::New();
-        //    for (vtkIdType i = 0; i < h_tempBuffers.numberOfPoints; ++i)
-        //    {
-        //        vtkIdType pid = i;
-        //        vertices->InsertNextCell(1, &pid);
+                entity->UpdateColorFromBuffer(h_tempBuffers);
 
-        //        unsigned char color[4] = {
-        //            h_tempBuffers.colors[i].x(),
-        //            h_tempBuffers.colors[i].y(),
-        //            h_tempBuffers.colors[i].z(),
-        //            255 };
-        //        clusteringColors->InsertNextTypedTuple(color);
-        //    }
+                d_tempBuffers.Terminate();
+                h_tempBuffers.Terminate();
+            }
+            else if ("Normal Discontinuity" == entity->GetName())
+            {
+                auto threshold = app->GetNormalDiscontinuityThreshold();
+                threshold += 1.0f;
 
-        //    vtkSmartPointer<vtkPolyData> polyData =
-        //        vtkPolyData::SafeDownCast(
-        //            vtkPolyDataMapper::SafeDownCast(pointCloudClusteringActor->GetMapper())->GetInput()
-        //        );
+                printf("Normal Discontinuity Threshold : %f = %f\n", threshold, threshold * M_PI / 180);
 
-        //    polyData->GetPointData()->SetScalars(clusteringColors);
+                app->SetNormalDiscontinuityThreshold(threshold);
 
-        //    d_tempBuffers.Terminate();
-        //    h_tempBuffers.Terminate();
-        //}
+                pointCloud->ComputeNormalDiscontinuity(threshold);
+
+                PointCloudBuffers d_tempBuffers;
+                d_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), false);
+
+                pointCloud->SerializeColoringByNormalDiscontinuity(d_tempBuffers);
+
+                PointCloudBuffers h_tempBuffers;
+                h_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), true);
+                d_tempBuffers.CopyTo(h_tempBuffers);
+
+                entity->UpdateColorFromBuffer(h_tempBuffers);
+
+                d_tempBuffers.Terminate();
+                h_tempBuffers.Terminate();
+            }
+            else if ("Normal Divergence" == entity->GetName())
+            {
+                auto threshold = app->GetNormalDivergenceThreshold();
+                threshold += 0.01f;
+
+                printf("Normal Divergence Threshold : %f\n", threshold);
+
+                app->SetNormalDivergenceThreshold(threshold);
+
+                pointCloud->ComputeNormalDivergence();
+
+                PointCloudBuffers d_tempBuffers;
+                d_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), false);
+
+                pointCloud->SerializeColoringByNormalDivergence(threshold, d_tempBuffers);
+
+                PointCloudBuffers h_tempBuffers;
+                h_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), true);
+                d_tempBuffers.CopyTo(h_tempBuffers);
+
+                entity->UpdateColorFromBuffer(h_tempBuffers);
+
+                d_tempBuffers.Terminate();
+                h_tempBuffers.Terminate();
+            }
+        }
 
         app->GetRenderer()->GetRenderWindow()->Render();
     }
     else if (key == "Next")
     {
-        normalGradientThreshold -= 0.005f;
-        printf("ormalGradientThreshold : %f\n", normalGradientThreshold);
+        auto entity = app->GetActiveEntity();
+        if (nullptr != entity)
+        {
+            if ("Clustering" == entity->GetName())
+            {
+                auto degree = app->GetClusteringDegree();
+                degree -= 1.0f;
 
-        //{ // Normal Gradient
-        //    pointCloud->ComputeNormalGradient();
+                printf("Clustering Degree : %f = %f\n", degree, degree* M_PI / 180);
 
-        //    PointCloudBuffers d_tempBuffers;
-        //    d_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), false);
+                app->SetClusteringDegree(degree);
 
-        //    pointCloud->SerializeColoringByNormalGradient(normalGradientThreshold, d_tempBuffers);
+                pointCloud->Clustering(degree);
 
-        //    PointCloudBuffers h_tempBuffers;
-        //    h_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), true);
+                PointCloudBuffers d_tempBuffers;
+                d_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), false);
 
-        //    d_tempBuffers.CopyTo(h_tempBuffers);
+                pointCloud->SerializeColoringByLabel(d_tempBuffers);
 
-        //    vtkSmartPointer<vtkUnsignedCharArray> clusteringColors = vtkSmartPointer<vtkUnsignedCharArray>::New();
-        //    clusteringColors->SetNumberOfComponents(4);
-        //    clusteringColors->SetName("Colors");
+                PointCloudBuffers h_tempBuffers;
+                h_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), true);
+                d_tempBuffers.CopyTo(h_tempBuffers);
 
-        //    auto vertices = vtkSmartPointer<vtkCellArray>::New();
-        //    for (vtkIdType i = 0; i < h_tempBuffers.numberOfPoints; ++i)
-        //    {
-        //        vtkIdType pid = i;
-        //        vertices->InsertNextCell(1, &pid);
+                entity->UpdateColorFromBuffer(h_tempBuffers);
 
-        //        unsigned char color[4] = {
-        //            h_tempBuffers.colors[i].x(),
-        //            h_tempBuffers.colors[i].y(),
-        //            h_tempBuffers.colors[i].z(),
-        //            255 };
-        //        clusteringColors->InsertNextTypedTuple(color);
-        //    }
+                d_tempBuffers.Terminate();
+                h_tempBuffers.Terminate();
+            }
+            else if("Normal Discontinuity" == entity->GetName())
+            {
+                auto threshold = app->GetNormalDiscontinuityThreshold();
+                threshold -= 1.0f;
 
-        //    vtkSmartPointer<vtkPolyData> polyData =
-        //        vtkPolyData::SafeDownCast(
-        //            vtkPolyDataMapper::SafeDownCast(pointCloudClusteringActor->GetMapper())->GetInput()
-        //        );
+                printf("Normal Discontinuity Threshold : %f = %f\n", threshold, threshold* M_PI / 180);
 
-        //    polyData->GetPointData()->SetScalars(clusteringColors);
+                app->SetNormalDiscontinuityThreshold(threshold);
 
-        //    d_tempBuffers.Terminate();
-        //    h_tempBuffers.Terminate();
-        //}
+                pointCloud->ComputeNormalDiscontinuity(threshold);
+
+                PointCloudBuffers d_tempBuffers;
+                d_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), false);
+
+                pointCloud->SerializeColoringByNormalDiscontinuity(d_tempBuffers);
+
+                PointCloudBuffers h_tempBuffers;
+                h_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), true);
+                d_tempBuffers.CopyTo(h_tempBuffers);
+
+                entity->UpdateColorFromBuffer(h_tempBuffers);
+
+                d_tempBuffers.Terminate();
+                h_tempBuffers.Terminate();
+            }
+            else if ("Normal Divergence" == entity->GetName())
+            {
+                auto threshold = app->GetNormalDivergenceThreshold();
+                threshold -= 0.01f;
+
+                printf("Normal Divergence Threshold : %f\n", threshold);
+
+                app->SetNormalDivergenceThreshold(threshold);
+
+                pointCloud->ComputeNormalDivergence();
+
+                PointCloudBuffers d_tempBuffers;
+                d_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), false);
+
+                pointCloud->SerializeColoringByNormalDivergence(threshold, d_tempBuffers);
+
+                PointCloudBuffers h_tempBuffers;
+                h_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), true);
+                d_tempBuffers.CopyTo(h_tempBuffers);
+
+                entity->UpdateColorFromBuffer(h_tempBuffers);
+
+                d_tempBuffers.Terminate();
+                h_tempBuffers.Terminate();
+            }
+        }
 
         app->GetRenderer()->GetRenderWindow()->Render();
     }

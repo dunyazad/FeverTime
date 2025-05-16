@@ -8,7 +8,7 @@
 class Entity
 {
 public:
-	Entity(vtkSmartPointer<vtkRenderer> renderer);
+	Entity(vtkSmartPointer<vtkRenderer> renderer, const string& name);
 	~Entity();
 
 	void Clear();
@@ -40,7 +40,12 @@ public:
 	void IncreasePointSize();
 	void DecreasePointSize();
 
+	inline const string& GetName() const { return name; }
+	inline void SetName(const string& name) { this->name = name; }
+
 private:
+	string name;
+
 	Eigen::AlignedBox3f roi = Eigen::AlignedBox3f(
 		Eigen::Vector3f(-FLT_MAX, -FLT_MAX, -FLT_MAX),
 		Eigen::Vector3f(FLT_MAX, FLT_MAX, FLT_MAX));

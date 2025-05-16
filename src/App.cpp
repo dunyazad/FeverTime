@@ -55,18 +55,17 @@ void App::Run()
 
 Entity* App::CreateEntity(const string& name)
 {
-    Entity* entity = new Entity(renderer);
+    Entity* entity = new Entity(renderer, name);
 
     if (!name.empty())
     {
-        if (nameEntityMapping.find(name) != nameEntityMapping.end())
+        if (nameEntityIndexMapping.find(name) != nameEntityIndexMapping.end())
         {
             cerr << "[App] Entity with name \"" << name << "\" already exists!" << endl;
             delete entity;
             return nullptr;
         }
-        nameEntityMapping[name] = entity;
-        entityNameMapping[static_cast<unsigned int>(entities.size())] = name;
+        nameEntityIndexMapping[name] = entities.size();
     }
 
     entities.push_back(entity);
@@ -75,10 +74,10 @@ Entity* App::CreateEntity(const string& name)
 
 Entity* App::GetEntity(const string& name)
 {
-    auto it = nameEntityMapping.find(name);
-    if (it != nameEntityMapping.end())
+    auto it = nameEntityIndexMapping.find(name);
+    if (it != nameEntityIndexMapping.end())
     {
-        return it->second;
+        return entities[it->second];
     }
     return nullptr;
 }

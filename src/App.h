@@ -19,6 +19,15 @@ public:
 
 	void Run();
 
+	Entity* CreateEntity(const string& name = "");
+	Entity* GetEntity(const string& name);
+	Entity* GetEntity(unsigned int index);
+
+	Entity* GetActiveEntity();
+
+	vector<Entity*>& GetEntities() { return entities; }
+	const vector<Entity*>& GetEntities() const { return entities; }
+
 	inline void SetInitializeCallback(function<void(App&)> callback) { onInitializeCallback = callback; }
 	inline void SetTerminateCallback(function<void()> callback) { onTerminateCallback = callback; }
 
@@ -40,7 +49,7 @@ public:
 			}
 			else
 			{
-				printf("Active Entity : %s\n", entityNameMapping[i].c_str());
+				printf("Active Entity : %s\n", entities[i]->GetName().c_str());
 				entities[i]->SetVisibility(true);
 			}
 		}
@@ -56,14 +65,14 @@ public:
 		else SetActiveEntityIndex(activeEntityIndex - 1);
 	}
 
-	Entity* CreateEntity(const string& name = "");
-	Entity* GetEntity(const string& name);
-	Entity* GetEntity(unsigned int index);
+	inline float GetClusteringDegree() { return clusteringDegree; }
+	inline void SetClusteringDegree(float degree) { clusteringDegree = degree; }
 
-	Entity* GetActiveEntity();
+	inline float GetNormalDiscontinuityThreshold() { return normalDiscontinuityThreshold; }
+	inline void SetNormalDiscontinuityThreshold(float threshold) { normalDiscontinuityThreshold = threshold; }
 
-	vector<Entity*>& GetEntities() { return entities; }
-	const vector<Entity*>& GetEntities() const { return entities; }
+	inline float GetNormalDivergenceThreshold() { return normalDivergenceThreshold; }
+	inline void SetNormalDivergenceThreshold(float threshold) { normalDivergenceThreshold = threshold; }
 
 private:
 	function<void(App&)> onInitializeCallback;
@@ -74,8 +83,11 @@ private:
 	vtkSmartPointer<vtkRenderWindowInteractor> interactor = vtkSmartPointer<vtkRenderWindowInteractor>::New();
 	vtkSmartPointer<vtkInteractorStyleTrackballCamera> interactorStyle = vtkSmartPointer<CustomInteractorStyle>::New();
 
-	map<string, Entity*> nameEntityMapping;
-	map<unsigned int, string> entityNameMapping;
+	map<string, unsigned int> nameEntityIndexMapping;
 	vector<Entity*> entities;
 	unsigned int activeEntityIndex = 0;
+
+	float clusteringDegree = 10.0f;
+	float normalDiscontinuityThreshold = 10.0f;
+	float normalDivergenceThreshold = 0.05f;
 };
