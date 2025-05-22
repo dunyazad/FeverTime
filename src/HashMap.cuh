@@ -8,9 +8,11 @@
 #include <Eigen/Geometry>
 namespace Eigen
 {
-    using Vector3b = Eigen::Vector<unsigned char, 3>;
-    using Vector3ui = Eigen::Vector<unsigned int, 3>;
+    using Vector4b = Eigen::Vector<unsigned char, 4>;
+    using Vector4ui = Eigen::Vector<unsigned int, 4>;
 }
+
+#include <LabelCounter.cuh>
 
 struct PointPNC
 {
@@ -23,9 +25,10 @@ struct HashMapVoxel
 {
     int3 coord = make_int3(0, 0, 0);
     unsigned int label = 0;
+    unsigned int subLabel = 0;
     Eigen::Vector3f position = Eigen::Vector3f(0.0f, 0.0f, 0.0f);
     Eigen::Vector3f normal = Eigen::Vector3f(0.0f, 0.0f, 0.0f);
-    Eigen::Vector3b color = Eigen::Vector3b(255, 255, 255);
+    Eigen::Vector4b color = Eigen::Vector4b(255, 255, 255, 255);
     float divergence = 0.0f;
     unsigned int pointCount = 0;
     unsigned int neighborCount = 0;
@@ -38,7 +41,7 @@ struct PointCloudBuffers
 {
     Eigen::Vector3f* positions = nullptr;
     Eigen::Vector3f* normals = nullptr;
-    Eigen::Vector3b* colors = nullptr;
+    Eigen::Vector4b* colors = nullptr;
     unsigned int numberOfPoints = 0;
     Eigen::AlignedBox3f aabb =
         Eigen::AlignedBox3f(
@@ -63,6 +66,9 @@ struct HashMapInfo
     unsigned int* d_numberOfOccupiedVoxels = nullptr;
     unsigned int h_numberOfOccupiedVoxels = 0;
     int3* d_occupiedVoxelIndices = nullptr;
+
+    LabelCounter labelCounter;
+    LabelCounter subLabelCounter;
 };
 
 struct HashMap
@@ -73,6 +79,8 @@ struct HashMap
     void Terminate();
 
     void InsertPoints(PointCloudBuffers buffers);
+
+    void CountLabels();
 
     void SerializeToPLY(const string& filename);
 };

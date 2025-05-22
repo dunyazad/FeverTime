@@ -62,7 +62,7 @@ bool PointCloud::LoadFromPLY(const std::string& filename)
 
 		h_buffers.positions[i] = Eigen::Vector3f(x, y, z);
 		h_buffers.normals[i] = Eigen::Vector3f(nx, ny, nz);
-		h_buffers.colors[i] = Eigen::Vector3b(r * 255.0f, g * 255.0f, b * 255.0f);
+		h_buffers.colors[i] = Eigen::Vector4b(r * 255.0f, g * 255.0f, b * 255.0f, 255);
 
 		h_buffers.aabb.extend(Eigen::Vector3f(x, y, z));
 	}
@@ -114,7 +114,7 @@ bool PointCloud::LoadFromPLY(const string& filename, const Eigen::AlignedBox3f& 
 
 		h_buffers.positions[bufferIndex] = Eigen::Vector3f(x, y, z);
 		h_buffers.normals[bufferIndex] = Eigen::Vector3f(nx, ny, nz);
-		h_buffers.colors[bufferIndex] = Eigen::Vector3b(r * 255.0f, g * 255.0f, b * 255.0f);
+		h_buffers.colors[bufferIndex] = Eigen::Vector4b(r * 255.0f, g * 255.0f, b * 255.0f, 255);
 
 		h_buffers.aabb.extend(Eigen::Vector3f(x, y, z));
 
@@ -163,7 +163,7 @@ bool PointCloud::LoadFromALP(const std::string& filename)
 
 		h_buffers.positions[i] = Eigen::Vector3f(p.position.x, p.position.y, p.position.z);
 		h_buffers.normals[i] = Eigen::Vector3f(p.normal.x, p.normal.y, p.normal.z);
-		h_buffers.colors[i] = Eigen::Vector3b(p.color.x * 255.0f, p.color.y * 255.0f, p.color.z * 255.0f);
+		h_buffers.colors[i] = Eigen::Vector4b(p.color.x * 255.0f, p.color.y * 255.0f, p.color.z * 255.0f, 255);
 
 		h_buffers.aabb.extend(Eigen::Vector3f(p.position.x, p.position.y, p.position.z));
 	}
@@ -205,7 +205,7 @@ bool PointCloud::LoadFromALP(const string& filename, const Eigen::AlignedBox3f& 
 
 		h_buffers.positions[bufferIndex] = Eigen::Vector3f(p.position.x, p.position.y, p.position.z);
 		h_buffers.normals[bufferIndex] = Eigen::Vector3f(p.normal.x, p.normal.y, p.normal.z);
-		h_buffers.colors[bufferIndex] = Eigen::Vector3b(p.color.x * 255.0f, p.color.y * 255.0f, p.color.z * 255.0f);
+		h_buffers.colors[bufferIndex] = Eigen::Vector4b(p.color.x * 255.0f, p.color.y * 255.0f, p.color.z * 255.0f, 255);
 
 		h_buffers.aabb.extend(Eigen::Vector3f(p.position.x, p.position.y, p.position.z));
 
@@ -409,7 +409,7 @@ __global__ void Kernel_SerializeVoxelsColoringByLabel(HashMapInfo info, PointClo
 	float g = hashToFloat(voxel->label * 3 + 1);
 	float b = hashToFloat(voxel->label * 3 + 2);
 
-	auto color = Eigen::Vector3b(r * 255.0f, g * 255.0f, b * 255.0f);
+	auto color = Eigen::Vector4b(r * 255.0f, g * 255.0f, b * 255.0f, 255);
 
 	buffers.positions[threadid] = position;
 	buffers.normals[threadid] = normal;
@@ -498,7 +498,7 @@ __global__ void Kernel_SerializeColoringByNeighborCount(HashMapInfo info, PointC
 	buffers.positions[idx] = voxel->position;
 	buffers.normals[idx] = voxel->normal;
 
-	//const Eigen::Vector3b COLORS[26] = {
+	//const Eigen::Vector4b COLORS[26] = {
 	//{255, 0, 0},
 	//{233, 0, 21},
 	//{212, 0, 42},
@@ -531,11 +531,11 @@ __global__ void Kernel_SerializeColoringByNeighborCount(HashMapInfo info, PointC
 
 	if (19 <= voxel->neighborCount && voxel->neighborCount <= 25)
 	{
-		buffers.colors[idx] = Eigen::Vector3b(255, 0, 0);
+		buffers.colors[idx] = Eigen::Vector4b(255, 0, 0, 255);
 	}
 	else
 	{
-		buffers.colors[idx] = Eigen::Vector3b(100, 100, 100);
+		buffers.colors[idx] = Eigen::Vector4b(100, 100, 100, 255);
 	}
 }
 
@@ -644,11 +644,11 @@ __global__ void Kernel_SerializeColoringByNormalDiscontinuity(HashMapInfo info, 
 
 	if (0 != voxel->normalDiscontinue)
 	{
-		buffers.colors[idx] = Eigen::Vector3b(255, 0, 0);
+		buffers.colors[idx] = Eigen::Vector4b(255, 0, 0, 255);
 	}
 	else
 	{
-		buffers.colors[idx] = Eigen::Vector3b(100, 100, 100);
+		buffers.colors[idx] = Eigen::Vector4b(100, 100, 100, 255);
 	}
 }
 
@@ -744,11 +744,11 @@ __global__ void Kernel_SerializeColoringByNormalGradient(HashMapInfo info, Point
 	float length = voxel->gradient.norm();
 	if (length > threshold)
 	{
-		buffers.colors[idx] = Eigen::Vector3b(255, 0, 0);
+		buffers.colors[idx] = Eigen::Vector4b(255, 0, 0, 255);
 	}
 	else
 	{
-		buffers.colors[idx] = Eigen::Vector3b(100, 100, 100);
+		buffers.colors[idx] = Eigen::Vector4b(100, 100, 100, 255);
 	}
 }
 
@@ -847,11 +847,11 @@ __global__ void Kernel_SerializeColoringByNormalDivergence(HashMapInfo info, Poi
 
 	if (voxel->divergence > threshold)
 	{
-		buffers.colors[idx] = Eigen::Vector3b(255, 0, 0);
+		buffers.colors[idx] = Eigen::Vector4b(255, 0, 0, 255);
 	}
 	else
 	{
-		buffers.colors[idx] = Eigen::Vector3b(100, 100, 100);
+		buffers.colors[idx] = Eigen::Vector4b(100, 100, 100, 255);
 	}
 }
 
@@ -939,11 +939,11 @@ __global__ void Kernel_SerializeColoringByColorMultiplication(HashMapInfo info, 
 
 	if (voxel->colorDistance > threshold)
 	{
-		buffers.colors[idx] = Eigen::Vector3b(255, 0, 0);
+		buffers.colors[idx] = Eigen::Vector4b(255, 0, 0, 255);
 	}
 	else
 	{
-		buffers.colors[idx] = Eigen::Vector3b(100, 100, 100);
+		buffers.colors[idx] = Eigen::Vector4b(100, 100, 100, 255);
 	}
 }
 
@@ -975,22 +975,28 @@ __device__ __forceinline__ unsigned int FindRootVoxel(HashMapInfo info, unsigned
 		auto& voxelA = info.d_hashTable[idx];
 		auto& voxelB = info.d_hashTable[parent];
 
-		//// 거리 조건
-		//Eigen::Vector3f centerA = voxelA.position / voxelA.pointCount;
-		//Eigen::Vector3f centerB = voxelB.position / voxelB.pointCount;
-		//float distSq = (centerA - centerB).squaredNorm();
-		//if (distSq > kMaxMergeDistance * kMaxMergeDistance) break;
-
-		//// 법선 조건
-		//Eigen::Vector3f nA = (voxelA.normal / voxelA.pointCount).normalized();
-		//Eigen::Vector3f nB = (voxelB.normal / voxelB.pointCount).normalized();
-		//if (nA.dot(nB) < kMinNormalDot) break;
-
-		// 경로 압축
 		if (parent != grandparent)
 			info.d_hashTable[idx].label = grandparent;
 
 		idx = info.d_hashTable[idx].label;
+	}
+	return idx;
+}
+
+__device__ __forceinline__ unsigned int FindRootVoxelSub(HashMapInfo info, unsigned int idx)
+{
+	while (info.d_hashTable[idx].subLabel != idx)
+	{
+		unsigned int parent = info.d_hashTable[idx].subLabel;
+		unsigned int grandparent = info.d_hashTable[parent].subLabel;
+
+		auto& voxelA = info.d_hashTable[idx];
+		auto& voxelB = info.d_hashTable[parent];
+
+		if (parent != grandparent)
+			info.d_hashTable[idx].subLabel = grandparent;
+
+		idx = info.d_hashTable[idx].subLabel;
 	}
 	return idx;
 }
@@ -1004,34 +1010,25 @@ __device__ __forceinline__ void UnionVoxel(HashMapInfo info, unsigned int a, uns
 	auto& voxelA = info.d_hashTable[rootA];
 	auto& voxelB = info.d_hashTable[rootB];
 
-	//auto dx = abs(voxelA.coord.x - voxelB.coord.x);
-	//auto dy = abs(voxelA.coord.y - voxelB.coord.y);
-	//auto dz = abs(voxelA.coord.z - voxelB.coord.z);
-	//if (dx >= 2 || dy >= 2 || dz >= 2)
-	//{
-	//	printf("??????????\n");
-	//	return;
-	//}
-
-
-
-	//// 중심 좌표 계산
-	//Eigen::Vector3f centerA = voxelA.position / voxelA.pointCount;
-	//Eigen::Vector3f centerB = voxelB.position / voxelB.pointCount;
-	//float distSq = (centerA - centerB).squaredNorm();
-
-	//if (distSq > kMaxMergeDistance * kMaxMergeDistance) return;
-
-	//// 법선 유사도 판단
-	//Eigen::Vector3f nA = (voxelA.normal / voxelA.pointCount).normalized();
-	//Eigen::Vector3f nB = (voxelB.normal / voxelB.pointCount).normalized();
-	//if (nA.dot(nB) < kMinNormalDot) return;
-
-	// 병합
 	if (rootA < rootB)
 		atomicMin(&voxelB.label, rootA);
 	else
 		atomicMin(&voxelA.label, rootB);
+}
+
+__device__ __forceinline__ void UnionVoxelSub(HashMapInfo info, unsigned int a, unsigned int b)
+{
+	unsigned int rootA = FindRootVoxelSub(info, a);
+	unsigned int rootB = FindRootVoxelSub(info, b);
+	if (rootA == rootB) return;
+
+	auto& voxelA = info.d_hashTable[rootA];
+	auto& voxelB = info.d_hashTable[rootB];
+
+	if (rootA < rootB)
+		atomicMin(&voxelB.subLabel, rootA);
+	else
+		atomicMin(&voxelA.subLabel, rootB);
 }
 
 __global__ void Kernel_ClearLabels(HashMapInfo info)
@@ -1046,6 +1043,7 @@ __global__ void Kernel_ClearLabels(HashMapInfo info)
 	auto voxel = GetVoxel(info, slot);
 
 	voxel->label = slot;
+	voxel->subLabel = slot;
 }
 
 __global__ void Kernel_InterVoxelHashMerge26Way(HashMapInfo info, float normalDegreeThreshold)
@@ -1077,9 +1075,11 @@ __global__ void Kernel_InterVoxelHashMerge26Way(HashMapInfo info, float normalDe
 		//if (neighborVoxel && neighborVoxel->label != 0)
 		if (neighborVoxel)
 		{
-			auto neighborNormal = (neighborVoxel->normal / (float)neighborVoxel->pointCount).normalized();
 
-			if (cosf(normalDegreeThreshold * M_PI / 180.0f) > centerNormal.dot(neighborNormal)) continue;
+			UnionVoxelSub(info, slot, neighborSlot);
+
+			auto neighborNormal = (neighborVoxel->normal / (float)neighborVoxel->pointCount).normalized();
+			if (normalDegreeThreshold * M_PI / 180.f < acosf(centerNormal.dot(neighborNormal))) continue;
 
 			UnionVoxel(info, slot, neighborSlot);
 		}
@@ -1105,7 +1105,7 @@ __global__ void Kernel_CompressVoxelHashLabels(HashMapInfo info)
 	}
 }
 
-__global__ void Kernel_GetLabels(HashMapInfo info, Eigen::Vector3f* points, unsigned int* labels, unsigned int numberOfPoints)
+__global__ void Kernel_GetLabels(HashMapInfo info, Eigen::Vector3f* points, uint3* labels, unsigned int numberOfPoints)
 {
 	unsigned int threadid = blockDim.x * blockIdx.x + threadIdx.x;
 	if (threadid >= numberOfPoints) return;
@@ -1117,7 +1117,9 @@ __global__ void Kernel_GetLabels(HashMapInfo info, Eigen::Vector3f* points, unsi
 		floorf(p.z() / info.voxelSize));
 
 	size_t h = voxel_hash(coord, info.capacity);
-	labels[threadid] = UINT_MAX;
+	labels[threadid].x = UINT_MAX;
+	labels[threadid].y = 0;
+	labels[threadid].z = 0;
 
 	for (int i = 0; i < info.maxProbe; ++i)
 	{
@@ -1130,19 +1132,21 @@ __global__ void Kernel_GetLabels(HashMapInfo info, Eigen::Vector3f* points, unsi
 			voxel.coord.y == coord.y &&
 			voxel.coord.z == coord.z)
 		{
-			labels[threadid] = voxel.label;
+			labels[threadid].x = voxel.label;
+			labels[threadid].y = info.labelCounter.GetCount(voxel.label);
+			labels[threadid].z = info.subLabelCounter.GetCount(voxel.label);
 			return;
 		}
 	}
 }
 
-vector<unsigned int> PointCloud::Clustering(float normalDegreeThreshold)
+vector<uint3> PointCloud::Clustering(float normalDegreeThreshold)
 {
 	nvtxRangePushA("Clustering");
 
 	unsigned int numberOfOccupiedVoxels = hashmap.info.h_numberOfOccupiedVoxels;
 	
-	vector<unsigned int> labels;
+	vector<uint3> labels;
 
 	{
 		unsigned int blockSize = 256;
@@ -1171,10 +1175,12 @@ vector<unsigned int> PointCloud::Clustering(float normalDegreeThreshold)
 		cudaDeviceSynchronize();
 	}
 
+	hashmap.CountLabels();
+
 	labels.resize(h_buffers.numberOfPoints);
 	{
-		unsigned int* d_labels = nullptr;
-		cudaMalloc(&d_labels, sizeof(unsigned int) * h_buffers.numberOfPoints);
+		uint3* d_labels = nullptr;
+		cudaMalloc(&d_labels, sizeof(uint3) * h_buffers.numberOfPoints);
 
 		unsigned int blockSize = 256;
 		unsigned int gridOccupied = (h_buffers.numberOfPoints + blockSize - 1) / blockSize;
@@ -1220,7 +1226,15 @@ __global__ void Kernel_SerializeColoringByLabel(HashMapInfo info, PointCloudBuff
 			float g = hashToFloat(voxel.label * 3 + 1);
 			float b = hashToFloat(voxel.label * 3 + 2);
 
-			buffers.colors[idx] = Eigen::Vector3b(r * 255.0f, g * 255.0f, b * 255.0f);
+			auto labelCount = info.labelCounter.GetCount(voxel.label);
+			if (100000 > labelCount)
+			{
+				buffers.colors[idx] = Eigen::Vector4b(r * 255.0f, g * 255.0f, b * 255.0f, 0);
+			}
+			else
+			{
+				buffers.colors[idx] = Eigen::Vector4b(r * 255.0f, g * 255.0f, b * 255.0f, 255);
+			}
 
 			return;
 		}
@@ -1235,6 +1249,60 @@ void PointCloud::SerializeColoringByLabel(PointCloudBuffers& d_tempBuffers)
 	unsigned int gridOccupied = (d_buffers.numberOfPoints + blockSize - 1) / blockSize;
 
 	Kernel_SerializeColoringByLabel << <gridOccupied, blockSize >> > (hashmap.info, d_tempBuffers);
+
+	cudaDeviceSynchronize();
+}
+
+__global__ void Kernel_SerializeColoringBySubLabel(HashMapInfo info, PointCloudBuffers buffers)
+{
+	int idx = blockIdx.x * blockDim.x + threadIdx.x;
+	if (idx >= buffers.numberOfPoints) return;
+
+	auto& p = buffers.positions[idx];
+	int3 coord = make_int3(floorf(p.x() / info.voxelSize), floorf(p.y() / info.voxelSize), floorf(p.z() / info.voxelSize));
+	size_t h = voxel_hash(coord, info.capacity);
+
+	for (unsigned int i = 0; i < info.maxProbe; ++i)
+	{
+		size_t slot = (h + i) % info.capacity;
+		auto& voxel = info.d_hashTable[slot];
+
+		if (0 == voxel.subLabel) return;
+
+		if (voxel.coord.x == coord.x &&
+			voxel.coord.y == coord.y &&
+			voxel.coord.z == coord.z)
+		{
+			buffers.positions[idx] = voxel.position;
+			buffers.normals[idx] = voxel.normal;
+
+			float r = hashToFloat(voxel.subLabel * 3 + 0);
+			float g = hashToFloat(voxel.subLabel * 3 + 1);
+			float b = hashToFloat(voxel.subLabel * 3 + 2);
+
+			auto subLabelCount = info.labelCounter.GetCount(voxel.subLabel);
+			if (100000 > subLabelCount)
+			{
+				buffers.colors[idx] = Eigen::Vector4b(r * 255.0f, g * 255.0f, b * 255.0f, 0);
+			}
+			else
+			{
+				buffers.colors[idx] = Eigen::Vector4b(r * 255.0f, g * 255.0f, b * 255.0f, 255);
+			}
+
+			return;
+		}
+	}
+}
+
+void PointCloud::SerializeColoringBySubLabel(PointCloudBuffers& d_tempBuffers)
+{
+	d_buffers.CopyTo(d_tempBuffers);
+
+	unsigned int blockSize = 256;
+	unsigned int gridOccupied = (d_buffers.numberOfPoints + blockSize - 1) / blockSize;
+
+	Kernel_SerializeColoringBySubLabel << <gridOccupied, blockSize >> > (hashmap.info, d_tempBuffers);
 
 	cudaDeviceSynchronize();
 }
@@ -1271,7 +1339,7 @@ __global__ void Kernel_SplitByNormal(HashMapInfo info, PointCloudBuffers buffers
 			float g = hashToFloat(voxel.label * 3 + 1);
 			float b = hashToFloat(voxel.label * 3 + 2);
 
-			buffers.colors[idx] = Eigen::Vector3b(r * 255.0f, g * 255.0f, b * 255.0f);
+			buffers.colors[idx] = Eigen::Vector4b(r * 255.0f, g * 255.0f, b * 255.0f, 255);
 
 			return;
 		}

@@ -8,8 +8,8 @@
 #include <Eigen/Geometry>
 namespace Eigen
 {
-    using Vector3b = Eigen::Vector<unsigned char, 3>;
-    using Vector3ui = Eigen::Vector<unsigned int, 3>;
+	using Vector4b = Eigen::Vector<unsigned char, 4>;
+	using Vector4ui = Eigen::Vector<unsigned int, 4>;
 }
 
 #include <HashMap.cuh>
@@ -57,9 +57,10 @@ public:
 	void ComputeColorMultiplication();
 	void SerializeColoringByColorMultiplication(float threshold, PointCloudBuffers& d_tempBuffers);
 
-	vector<unsigned int> Clustering(float normalDegreeThreshold = 10.0f);
+	vector<uint3> Clustering(float normalDegreeThreshold = 10.0f);
 
 	void SerializeColoringByLabel(PointCloudBuffers& d_tempBuffers);
+	void SerializeColoringBySubLabel(PointCloudBuffers& d_tempBuffers);
 
 	void SplitByNormal(PointCloudBuffers& d_tempBuffers);
 

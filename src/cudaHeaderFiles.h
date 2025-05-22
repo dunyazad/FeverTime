@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stdio.h>
+
 #include <nvtx3/nvToolsExt.h>
 #include <cuda_runtime.h>
 #include <cuda_gl_interop.h>

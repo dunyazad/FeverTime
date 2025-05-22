@@ -14,10 +14,15 @@ App::~App()
 void App::Initialize()
 {
     renderer->GetActiveCamera()->SetEyeAngle(0);
+    renderer->UseDepthPeelingOn();
+    renderer->SetMaximumNumberOfPeels(100);
+    renderer->SetOcclusionRatio(0.1);
 
     renderWindow->StereoCapableWindowOff();
     renderWindow->SetStereoRender(false);
     renderWindow->SetStereoType(0);
+    renderWindow->SetAlphaBitPlanes(1);
+    renderWindow->SetMultiSamples(0);
     renderWindow->AddRenderer(renderer);
 
     interactor->SetRenderWindow(renderWindow);

@@ -39,7 +39,8 @@ void findTopTwo(const map<uint3, unsigned int>& colorHistogram) {
 }
 
 
-const string resource_file_name = "Compound_Full";
+//const string resource_file_name = "Compound_Full";
+const string resource_file_name = "Serialized";
 const string resource_file_name_ply = "../../res/3D/" + resource_file_name + ".ply";
 const string resource_file_name_alp = "../../res/3D/" + resource_file_name + ".alp";
 
@@ -69,7 +70,8 @@ int main(int argc, char** argv)
 
         app.GetRenderer()->SetBackground(0.3, 0.5, 0.7);
 
-        auto roi = Eigen::AlignedBox3f(Eigen::Vector3f(0.0f, -60.0f, -5.0f), Eigen::Vector3f(20.0f, -30.0f, 25.0f));
+        //auto roi = Eigen::AlignedBox3f(Eigen::Vector3f(0.0f, -60.0f, -5.0f), Eigen::Vector3f(20.0f, -30.0f, 25.0f));
+        auto roi = Eigen::AlignedBox3f(Eigen::Vector3f(-FLT_MAX, -FLT_MAX, -FLT_MAX), Eigen::Vector3f(FLT_MAX, FLT_MAX, FLT_MAX));
 
         if (false == pointCloud.LoadFromALP(resource_file_name_alp, roi))
         {
@@ -112,12 +114,55 @@ int main(int argc, char** argv)
             auto entity = app.CreateEntity("Clustering");
             entity->CopyFrom(defaultEntity);
 
-            pointCloud.Clustering(10.0f);
+            auto clusteringResult = pointCloud.Clustering(10.0f);
+            map<unsigned int, unsigned int> labelCounts;
+            map<unsigned int, unsigned int> subLabelCounts;
+            for (auto& lc : clusteringResult)
+            {
+                labelCounts[lc.x] = lc.y;
+                subLabelCounts[lc.x] = lc.z;
+            }
+
+            for (auto& kvp : labelCounts)
+            {
+                printf("[%3d] : %5d\n", kvp.first, kvp.second);
+            }
+
+            printf("=================================================\n");
+
+            for (auto& kvp : labelCounts)
+            {
+                printf("[%3d] : %5d\n", kvp.first, kvp.second);
+            }
 
             PointCloudBuffers d_tempBuffers;
             d_tempBuffers.Initialize(pointCloud.GetNumberOfPoints(), false);
 
             pointCloud.SerializeColoringByLabel(d_tempBuffers);
+
+            PointCloudBuffers h_tempBuffers;
+            h_tempBuffers.Initialize(pointCloud.GetNumberOfPoints(), true);
+            d_tempBuffers.CopyTo(h_tempBuffers);
+
+            entity->UpdateColorFromBuffer(h_tempBuffers);
+
+            d_tempBuffers.Terminate();
+            h_tempBuffers.Terminate();
+
+            entity->SetVisibility(false);
+        }
+
+
+        {
+            auto entity = app.CreateEntity("Clustering Sub");
+            entity->CopyFrom(defaultEntity);
+
+            pointCloud.Clustering(10.0f);
+
+            PointCloudBuffers d_tempBuffers;
+            d_tempBuffers.Initialize(pointCloud.GetNumberOfPoints(), false);
+
+            pointCloud.SerializeColoringBySubLabel(d_tempBuffers);
 
             PointCloudBuffers h_tempBuffers;
             h_tempBuffers.Initialize(pointCloud.GetNumberOfPoints(), true);

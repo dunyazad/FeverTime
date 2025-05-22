@@ -131,6 +131,31 @@ void KeyPressCallback::Execute(vtkObject* caller, unsigned long eventId, void* c
                 d_tempBuffers.Terminate();
                 h_tempBuffers.Terminate();
             }
+            else if ("Clustering Sub" == entity->GetName())
+            {
+                auto degree = app->GetClusteringDegree();
+                degree += 1.0f;
+
+                printf("Clustering Degree : %f = %f\n", degree, degree * M_PI / 180);
+
+                app->SetClusteringDegree(degree);
+
+                pointCloud->Clustering(degree);
+
+                PointCloudBuffers d_tempBuffers;
+                d_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), false);
+
+                pointCloud->SerializeColoringByLabel(d_tempBuffers);
+
+                PointCloudBuffers h_tempBuffers;
+                h_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), true);
+                d_tempBuffers.CopyTo(h_tempBuffers);
+
+                entity->UpdateColorFromBuffer(h_tempBuffers);
+
+                d_tempBuffers.Terminate();
+                h_tempBuffers.Terminate();
+            }
             else if ("Normal Discontinuity" == entity->GetName())
             {
                 auto threshold = app->GetNormalDiscontinuityThreshold();
@@ -196,6 +221,31 @@ void KeyPressCallback::Execute(vtkObject* caller, unsigned long eventId, void* c
                 degree -= 1.0f;
 
                 printf("Clustering Degree : %f = %f\n", degree, degree* M_PI / 180);
+
+                app->SetClusteringDegree(degree);
+
+                pointCloud->Clustering(degree);
+
+                PointCloudBuffers d_tempBuffers;
+                d_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), false);
+
+                pointCloud->SerializeColoringByLabel(d_tempBuffers);
+
+                PointCloudBuffers h_tempBuffers;
+                h_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), true);
+                d_tempBuffers.CopyTo(h_tempBuffers);
+
+                entity->UpdateColorFromBuffer(h_tempBuffers);
+
+                d_tempBuffers.Terminate();
+                h_tempBuffers.Terminate();
+            }
+            else if ("Clustering Sub" == entity->GetName())
+            {
+                auto degree = app->GetClusteringDegree();
+                degree -= 1.0f;
+
+                printf("Clustering Degree : %f = %f\n", degree, degree * M_PI / 180);
 
                 app->SetClusteringDegree(degree);
 

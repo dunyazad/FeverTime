@@ -90,7 +90,7 @@ void Entity::FromPointCloudBuffers(PointCloudBuffers* buffers)
         points->InsertNextPoint(p.x(), p.y(), p.z());
         normals->InsertNextTuple3(n.x(), n.y(), n.z());
 
-        unsigned char color[4] = { c.x(), c.y(), c.z(), 255 };
+        unsigned char color[4] = { c.x(), c.y(), c.z(), c.w() };
         colors->InsertNextTypedTuple(color);
 
         vtkIdType pid = i;
@@ -209,7 +209,7 @@ void Entity::FromPointCloud(PointCloud* pointCloud)
         points->InsertNextPoint(p.x(), p.y(), p.z());
         normals->InsertNextTuple3(n.x(), n.y(), n.z());
 
-        unsigned char color[4] = { c.x(), c.y(), c.z(), 255 };
+        unsigned char color[4] = { c.x(), c.y(), c.z(), c.w() };
         colors->InsertNextTypedTuple(color);
 
         vtkIdType pid = i;
@@ -329,7 +329,7 @@ void Entity::FromPointCloud(PointCloud* pointCloud, const Eigen::AlignedBox3f& r
         points->InsertNextPoint(p.x(), p.y(), p.z());
         normals->InsertNextTuple3(n.x(), n.y(), n.z());
 
-        unsigned char color[4] = { c.x(), c.y(), c.z(), 255 };
+        unsigned char color[4] = { c.x(), c.y(), c.z(), c.w() };
         colors->InsertNextTypedTuple(color);
 
         vtkIdType pid = i - skipCount;
@@ -614,7 +614,7 @@ void Entity::UpdateColorFromBuffer(const PointCloudBuffers& buffer)
             buffer.colors[i].x(),
             buffer.colors[i].y(),
             buffer.colors[i].z(),
-            255
+            buffer.colors[i].w()
         };
         newColors->InsertNextTypedTuple(color);
     }

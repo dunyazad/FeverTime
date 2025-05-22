@@ -10,13 +10,13 @@ void PointCloudBuffers::Initialize(unsigned int numberOfPoints, bool isHostBuffe
 	{
 		positions = new Eigen::Vector3f[numberOfPoints];
 		normals = new Eigen::Vector3f[numberOfPoints];
-		colors = new Eigen::Vector3b[numberOfPoints];
+		colors = new Eigen::Vector4b[numberOfPoints];
 	}
 	else
 	{
 		cudaMalloc(&positions, sizeof(Eigen::Vector3f) * numberOfPoints);
 		cudaMalloc(&normals, sizeof(Eigen::Vector3f) * numberOfPoints);
-		cudaMalloc(&colors, sizeof(Eigen::Vector3b) * numberOfPoints);
+		cudaMalloc(&colors, sizeof(Eigen::Vector4b) * numberOfPoints);
 	}
 }
 
@@ -50,7 +50,7 @@ void PointCloudBuffers::CopyTo(PointCloudBuffers& other)
 		other.aabb = aabb;
 		memcpy(other.positions, positions, sizeof(Eigen::Vector3f) * numberOfPoints);
 		memcpy(other.normals, normals, sizeof(Eigen::Vector3f) * numberOfPoints);
-		memcpy(other.colors, colors, sizeof(Eigen::Vector3b) * numberOfPoints);
+		memcpy(other.colors, colors, sizeof(Eigen::Vector4b) * numberOfPoints);
 	}
 	else if (false == isHostBuffer && other.isHostBuffer)
 	{
@@ -58,7 +58,7 @@ void PointCloudBuffers::CopyTo(PointCloudBuffers& other)
 		other.aabb = aabb;
 		cudaMemcpy(other.positions, positions, sizeof(Eigen::Vector3f) * numberOfPoints, cudaMemcpyDeviceToHost);
 		cudaMemcpy(other.normals, normals, sizeof(Eigen::Vector3f) * numberOfPoints, cudaMemcpyDeviceToHost);
-		cudaMemcpy(other.colors, colors, sizeof(Eigen::Vector3b) * numberOfPoints, cudaMemcpyDeviceToHost);
+		cudaMemcpy(other.colors, colors, sizeof(Eigen::Vector4b) * numberOfPoints, cudaMemcpyDeviceToHost);
 	}
 	else if (isHostBuffer && false == other.isHostBuffer)
 	{
@@ -66,7 +66,7 @@ void PointCloudBuffers::CopyTo(PointCloudBuffers& other)
 		other.aabb = aabb;
 		cudaMemcpy(other.positions, positions, sizeof(Eigen::Vector3f) * numberOfPoints, cudaMemcpyHostToDevice);
 		cudaMemcpy(other.normals, normals, sizeof(Eigen::Vector3f) * numberOfPoints, cudaMemcpyHostToDevice);
-		cudaMemcpy(other.colors, colors, sizeof(Eigen::Vector3b) * numberOfPoints, cudaMemcpyHostToDevice);
+		cudaMemcpy(other.colors, colors, sizeof(Eigen::Vector4b) * numberOfPoints, cudaMemcpyHostToDevice);
 	}
 	else if (false == isHostBuffer && false == other.isHostBuffer)
 	{
@@ -74,7 +74,7 @@ void PointCloudBuffers::CopyTo(PointCloudBuffers& other)
 		other.aabb = aabb;
 		cudaMemcpy(other.positions, positions, sizeof(Eigen::Vector3f) * numberOfPoints, cudaMemcpyDeviceToDevice);
 		cudaMemcpy(other.normals, normals, sizeof(Eigen::Vector3f) * numberOfPoints, cudaMemcpyDeviceToDevice);
-		cudaMemcpy(other.colors, colors, sizeof(Eigen::Vector3b) * numberOfPoints, cudaMemcpyDeviceToDevice);
+		cudaMemcpy(other.colors, colors, sizeof(Eigen::Vector4b) * numberOfPoints, cudaMemcpyDeviceToDevice);
 	}
 }
 
@@ -88,6 +88,9 @@ void HashMap::Initialize()
 
 	cudaMalloc(&info.d_occupiedVoxelIndices, sizeof(int3) * info.capacity);
 	cudaMemset(info.d_occupiedVoxelIndices, 0, sizeof(int3) * info.capacity);
+
+	info.labelCounter.Initialize(info.capacity);
+	info.subLabelCounter.Initialize(info.capacity);
 }
 
 void HashMap::Terminate()
@@ -95,6 +98,9 @@ void HashMap::Terminate()
 	cudaFree(info.d_hashTable);
 	cudaFree(info.d_numberOfOccupiedVoxels);
 	cudaFree(info.d_occupiedVoxelIndices);
+
+	info.labelCounter.Terminate();
+	info.subLabelCounter.Terminate();
 }
 
 __device__ __host__ float hashToFloat(uint32_t seed)
@@ -153,8 +159,8 @@ __global__ void Kernel_InsertPoints(HashMapInfo info, PointCloudBuffers buffers)
 			// »õ·Î¿î ½½·Ô¿¡ »ðÀÔ
 			info.d_hashTable[slot].coord = coord;
 			info.d_hashTable[slot].position = Eigen::Vector3f((float)coord.x * info.voxelSize, (float)coord.y * info.voxelSize, (float)coord.z * info.voxelSize);
-			info.d_hashTable[slot].normal = Eigen::Vector3f(n.x(), n.y(), n.z());
-			info.d_hashTable[slot].color = Eigen::Vector3b(c.x(), c.y(), c.z());
+			info.d_hashTable[slot].normal = n;
+			info.d_hashTable[slot].color = c;
 			info.d_hashTable[slot].pointCount = 1;
 
 			auto oldIndex = atomicAdd(info.d_numberOfOccupiedVoxels, 1);
@@ -164,8 +170,8 @@ __global__ void Kernel_InsertPoints(HashMapInfo info, PointCloudBuffers buffers)
 		else {
 			int3 existing = info.d_hashTable[slot].coord;
 			if (existing.x == coord.x && existing.y == coord.y && existing.z == coord.z) {
-				info.d_hashTable[slot].normal += Eigen::Vector3f(n.x(), n.y(), n.z());
-				info.d_hashTable[slot].color = Eigen::Vector3b(c.x(), c.y(), c.z());
+				info.d_hashTable[slot].normal += n;
+				info.d_hashTable[slot].color = c;
 				info.d_hashTable[slot].pointCount++;
 				return;
 			}
@@ -183,6 +189,38 @@ void HashMap::InsertPoints(PointCloudBuffers buffers)
 	cudaDeviceSynchronize();
 
 	cudaMemcpy(&info.h_numberOfOccupiedVoxels, info.d_numberOfOccupiedVoxels, sizeof(unsigned int), cudaMemcpyDeviceToHost);
+}
+
+__global__ void Kernel_CountLabels(HashMapInfo info)
+{
+	int idx = blockIdx.x * blockDim.x + threadIdx.x;
+	if (idx >= *info.d_numberOfOccupiedVoxels) return;
+
+	int3 coord = info.d_occupiedVoxelIndices[idx];
+	auto voxelSlot = GetVoxelSlot(info, coord);
+	if (UINT64_MAX == voxelSlot) return;
+
+	auto voxel = GetVoxel(info, voxelSlot);
+	if (nullptr == voxel) return;
+
+	info.labelCounter.IncreaseCount(voxel->label);
+	info.subLabelCounter.IncreaseCount(voxel->subLabel);
+}
+
+void HashMap::CountLabels()
+{
+	info.labelCounter.Clear();
+	info.subLabelCounter.Clear();
+
+	//info.labelCounter.Resize(info.capacity * 2);
+	//info.subLabelCounter.Resize(info.capacity * 2);
+
+	unsigned int blockSize = 256;
+	unsigned int gridOccupied = (info.h_numberOfOccupiedVoxels + blockSize - 1) / blockSize;
+
+	Kernel_CountLabels << <gridOccupied, blockSize >> > (info);
+
+	cudaDeviceSynchronize();
 }
 
 __global__ void Kernel_Serialize(HashMapInfo info, PointCloudBuffers buffers)
