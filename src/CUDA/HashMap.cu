@@ -109,7 +109,7 @@ void HashMap::CountLabels()
 	cudaDeviceSynchronize();
 }
 
-__global__ void Kernel_Serialize(HashMapInfo info, PointCloudBuffers buffers)
+__global__ void Kernel_Serialize_HashMap(HashMapInfo info, PointCloudBuffers buffers)
 {
 	int idx = blockIdx.x * blockDim.x + threadIdx.x;
 	if (idx >= *info.d_numberOfOccupiedVoxels) return;
@@ -148,7 +148,7 @@ void HashMap::SerializeToPLY(const std::string& filename)
 	unsigned int blockSize = 256;
 	unsigned int gridOccupied = (numberOfOccupiedVoxels + blockSize - 1) / blockSize;
 
-	Kernel_Serialize << <gridOccupied, blockSize >> > (info, d_buffers);
+	Kernel_Serialize_HashMap << <gridOccupied, blockSize >> > (info, d_buffers);
 
 	cudaDeviceSynchronize();
 

@@ -116,6 +116,49 @@ int main(int argc, char** argv)
         //pointCloud.ComputeVoxelNormalPCA();
         //pointCloud.ComputeVoxelNormalAverage();
 
+        {
+            auto entity = app.CreateEntity("Check Overlap");
+
+            PointCloudAlgorithm_CheckOverlap checkOverlap;
+
+            //PointCloud tempPointCloud;
+            //tempPointCloud.Initialize(pointCloud.GetNumberOfPoints());
+
+            //pointCloud.CopyTo(tempPointCloud);
+
+            //checkOverlap.RunAlgorithm(&tempPointCloud);
+
+            ////pointCloud.SerializeVoxelsColoringByLabel(tempPointCloud.GetDeviceBuffers());
+
+            //entity->FromPointCloudBuffers(&tempPointCloud.GetDeviceBuffers());
+
+            //tempPointCloud.Terminate();
+
+            checkOverlap.RunAlgorithm(&pointCloud);
+
+            entity->FromPointCloudBuffers(&pointCloud.GetDeviceBuffers());
+        }
+
+        /*
+        {
+            auto entity = app.CreateEntity("Result_ComputeTSDF");
+
+            PointCloudAlgorithm_ComputeTSDF computeTSDF;
+
+            PointCloud tempPointCloud;
+            tempPointCloud.Initialize(pointCloud.GetNumberOfPoints() * 10);
+
+            pointCloud.GetDeviceBuffers().CopyTo(tempPointCloud.GetDeviceBuffers());
+
+            computeTSDF.RunAlgorithm(&tempPointCloud);
+
+            //pointCloud.SerializeVoxelsColoringByLabel(tempPointCloud.GetDeviceBuffers());
+
+            entity->FromPointCloudBuffers(&tempPointCloud.GetDeviceBuffers());
+
+            tempPointCloud.Terminate();
+        }
+        */
 
         /*
         {
@@ -142,6 +185,7 @@ int main(int argc, char** argv)
         }
         */
 
+        /*
         {
             auto entity = app.CreateEntity("Clustering");
             entity->CopyFrom(defaultEntity);
@@ -183,6 +227,7 @@ int main(int argc, char** argv)
 
             entity->SetVisibility(false);
         }
+        */
 
         /*
         {
@@ -258,19 +303,6 @@ int main(int argc, char** argv)
             entity->SetVisibility(false);
         }
         */
-
-        {
-            auto entity = app.CreateEntity("Voxels");
-
-            PointCloudBuffers d_tempBuffers;
-            d_tempBuffers.Initialize(pointCloud.GetNumberOfPoints(), false);
-
-            pointCloud.SerializeVoxelsColoringByLabel(d_tempBuffers);
-
-            entity->FromPointCloudBuffers(&d_tempBuffers);
-
-            d_tempBuffers.Terminate();
-        }
 
         /*
         {
@@ -464,6 +496,19 @@ int main(int argc, char** argv)
             return (seed & 0xFFFFFF) / static_cast<float>(0xFFFFFF);
         };
         */
+
+        {
+            auto entity = app.CreateEntity("Voxels");
+
+            PointCloudBuffers d_tempBuffers;
+            d_tempBuffers.Initialize(pointCloud.GetNumberOfPoints(), false);
+
+            pointCloud.SerializeVoxelsColoringByLabel(d_tempBuffers);
+
+            entity->FromPointCloudBuffers(&d_tempBuffers);
+
+            d_tempBuffers.Terminate();
+        }
     });
 
     app.Initialize();

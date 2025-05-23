@@ -24,6 +24,26 @@ void PointCloud::Terminate()
 	hashmap.Terminate();
 }
 
+void PointCloud::CopyTo(PointCloud& other)
+{
+	if (0 == h_buffers.numberOfPoints && 0 == d_buffers.numberOfPoints) return;
+
+	h_buffers.CopyTo(other.h_buffers);
+	d_buffers.CopyTo(other.d_buffers);
+
+	if (0 == other.h_buffers.numberOfPoints)
+	{
+		other.DtoH();
+	}
+
+	if (0 == other.d_buffers.numberOfPoints)
+	{
+		other.HtoD();
+	}
+
+	other.hashmap.InsertPoints(other.d_buffers);
+}
+
 void PointCloud::HtoD()
 {
 	h_buffers.CopyTo(d_buffers);

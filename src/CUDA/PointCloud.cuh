@@ -13,6 +13,8 @@ public:
 	void Initialize(unsigned int numberOfPoints);
 	void Terminate();
 
+	void CopyTo(PointCloud& other);
+
 	void HtoD();
 	void DtoH();
 
@@ -61,6 +63,8 @@ public:
 	inline PointCloudBuffers& GetDeviceBuffers() { return d_buffers; };
 	inline const PointCloudBuffers& GetDeviceBuffers() const { return d_buffers; };
 
+	inline HashMap& GetHashMap() { return hashmap; }
+	inline const HashMap& GetHashMap() const { return hashmap; }
 private:
 	PointCloudBuffers h_buffers;
 	PointCloudBuffers d_buffers;

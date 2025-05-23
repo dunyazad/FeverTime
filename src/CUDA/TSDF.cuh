@@ -12,6 +12,7 @@ struct TSDFVoxel
     Eigen::Vector3f normal = Eigen::Vector3f(0.0f, 0.0f, 0.0f);
     Eigen::Vector4b color = Eigen::Vector4b(255, 255, 255, 255);
     float value = 0.0f;
+    float weight = 0.0f;
     unsigned int pointCount = 0;
 };
 
@@ -20,6 +21,7 @@ struct TSDFInfo
     size_t capacity = 1024 * 1024 * 100;
     unsigned int maxProbe = 32;
     float voxelSize = 0.1f;
+    float truncation = 0.4f;
 
     TSDFVoxel* d_hashTable = nullptr;
     unsigned int* d_numberOfOccupiedVoxels = nullptr;
@@ -34,7 +36,7 @@ struct TSDF
 {
     TSDFInfo info;
 
-    void Initialize();
+    void Initialize(size_t capacity);
     void Terminate();
 
     void InsertPoints(PointCloudBuffers buffers);
@@ -46,3 +48,4 @@ struct TSDF
 
 __device__ size_t GetTSDFVoxelSlot(TSDFInfo& info, int3 coord);
 __device__ TSDFVoxel* GetTSDFVoxel(TSDFInfo& info, size_t slot);
+__device__ void InsertTSDFVoxel(TSDFInfo& info, const int3& coord, const Eigen::Vector3f& normal, const Eigen::Vector4b& color);
