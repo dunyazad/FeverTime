@@ -1,7 +1,9 @@
 #include <AppCallbacks.h>
 #include <App.h>
 
-#include <PointCloud.cuh>
+#include <CUDA/PointCloud.cuh>
+
+#include <Debugging/VisualDebugging.h>
 
 DoubleClickPickerCallback* DoubleClickPickerCallback::New()
 {
@@ -41,6 +43,16 @@ void DoubleClickPickerCallback::Execute(vtkObject* caller, unsigned long eventId
 
                 camera->SetFocalPoint(focal);
                 camera->SetPosition(position);
+
+                auto p = Eigen::Vector3f((float)focal[0], (float)focal[1], (float)focal[2]);
+                auto dx = Eigen::Vector3f(10.0f * 0.5f, 0.0f, 0.0f);
+                auto dy = Eigen::Vector3f(0.0f, 10.0f * 0.5f, 0.0f);
+                auto dz = Eigen::Vector3f(0.0f, 0.0f, 10.0f * 0.5f);
+
+                VisualDebugging::Clear("Clicked");
+                VisualDebugging::AddLine("Clicked", p, p + dx, Color4::Red);
+                VisualDebugging::AddLine("Clicked", p, p + dy, Color4::Green);
+                VisualDebugging::AddLine("Clicked", p, p + dz, Color4::Blue);
 
                 app->GetRenderer()->ResetCameraClippingRange();
                 app->GetRenderer()->GetRenderWindow()->Render();
@@ -156,6 +168,30 @@ void KeyPressCallback::Execute(vtkObject* caller, unsigned long eventId, void* c
                 d_tempBuffers.Terminate();
                 h_tempBuffers.Terminate();
             }
+            /*
+            else if ("Empty Neighbor Count" == entity->GetName())
+            {
+                auto threshold = app->GetEmptyNeighborCountThreshold();
+                threshold += 1;
+
+                printf("Empty NeighborCountThreshold : %d\n", threshold);
+
+                app->SetEmptyNeighborCountThreshold(threshold);
+
+                PointCloudBuffers d_tempBuffers;
+                d_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), false);
+
+                pointCloud->SerializeColoringByEmptyNeighborCount(threshold, d_tempBuffers);
+
+                PointCloudBuffers h_tempBuffers;
+                h_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), true);
+                d_tempBuffers.CopyTo(h_tempBuffers);
+
+                entity->UpdateColorFromBuffer(h_tempBuffers);
+
+                d_tempBuffers.Terminate();
+                h_tempBuffers.Terminate();
+            }
             else if ("Normal Discontinuity" == entity->GetName())
             {
                 auto threshold = app->GetNormalDiscontinuityThreshold();
@@ -206,6 +242,7 @@ void KeyPressCallback::Execute(vtkObject* caller, unsigned long eventId, void* c
                 d_tempBuffers.Terminate();
                 h_tempBuffers.Terminate();
             }
+            */
         }
 
         app->GetRenderer()->GetRenderWindow()->Render();
@@ -255,6 +292,30 @@ void KeyPressCallback::Execute(vtkObject* caller, unsigned long eventId, void* c
                 d_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), false);
 
                 pointCloud->SerializeColoringByLabel(d_tempBuffers);
+
+                PointCloudBuffers h_tempBuffers;
+                h_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), true);
+                d_tempBuffers.CopyTo(h_tempBuffers);
+
+                entity->UpdateColorFromBuffer(h_tempBuffers);
+
+                d_tempBuffers.Terminate();
+                h_tempBuffers.Terminate();
+            }
+            /*
+            else if ("Empty Neighbor Count" == entity->GetName())
+            {
+                auto threshold = app->GetEmptyNeighborCountThreshold();
+                threshold -= 1;
+
+                printf("Empty NeighborCountThreshold : %d\n", threshold);
+
+                app->SetEmptyNeighborCountThreshold(threshold);
+
+                PointCloudBuffers d_tempBuffers;
+                d_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), false);
+
+                pointCloud->SerializeColoringByEmptyNeighborCount(threshold, d_tempBuffers);
 
                 PointCloudBuffers h_tempBuffers;
                 h_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), true);
@@ -315,6 +376,7 @@ void KeyPressCallback::Execute(vtkObject* caller, unsigned long eventId, void* c
                 d_tempBuffers.Terminate();
                 h_tempBuffers.Terminate();
             }
+            */
         }
 
         app->GetRenderer()->GetRenderWindow()->Render();

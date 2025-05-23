@@ -1,7 +1,9 @@
 #pragma warning(disable : 4819)
 
 #include "App.h"
-#include <main.cuh>
+#include <CUDA/main.cuh>
+
+#include <Debugging/VisualDebugging.h>
 
 bool operator == (uint3 a, uint3 b)
 {
@@ -51,6 +53,10 @@ int main(int argc, char** argv)
     PointCloud pointCloud;
 
     app.SetInitializeCallback([&](App& app) {
+        VisualDebugging::AddLine("axes", { 0, 0, 0 }, { 100.0f * 0.5f, 0.0f, 0.0f }, Color4::Red);
+        VisualDebugging::AddLine("axes", { 0, 0, 0 }, { 0.0f, 100.0f * 0.5f, 0.0f }, Color4::Green);
+        VisualDebugging::AddLine("axes", { 0, 0, 0 }, { 0.0f, 0.0f, 100.0f * 0.5f }, Color4::Blue);
+
         {
             auto picker = vtkSmartPointer<vtkPointPicker>::New();
             app.GetInteractor()->SetPicker(picker);
@@ -108,7 +114,33 @@ int main(int argc, char** argv)
         app.GetRenderWindow()->Render();
 
         //pointCloud.ComputeVoxelNormalPCA();
-        pointCloud.ComputeVoxelNormalAverage();
+        //pointCloud.ComputeVoxelNormalAverage();
+
+
+        /*
+        {
+            auto entity = app.CreateEntity("Empty Neighbor Count");
+            entity->CopyFrom(defaultEntity);
+
+            pointCloud.ComputeEmptyNeighborCount();
+
+            PointCloudBuffers d_tempBuffers;
+            d_tempBuffers.Initialize(pointCloud.GetNumberOfPoints(), false);
+
+            pointCloud.SerializeColoringByEmptyNeighborCount(20, d_tempBuffers);
+
+            PointCloudBuffers h_tempBuffers;
+            h_tempBuffers.Initialize(pointCloud.GetNumberOfPoints(), true);
+            d_tempBuffers.CopyTo(h_tempBuffers);
+
+            entity->UpdateColorFromBuffer(h_tempBuffers); // Add this function in Entity
+
+            d_tempBuffers.Terminate();
+            h_tempBuffers.Terminate();
+
+            entity->SetVisibility(false);
+        }
+        */
 
         {
             auto entity = app.CreateEntity("Clustering");
@@ -123,17 +155,17 @@ int main(int argc, char** argv)
                 subLabelCounts[lc.x] = lc.z;
             }
 
-            for (auto& kvp : labelCounts)
-            {
-                printf("[%3d] : %5d\n", kvp.first, kvp.second);
-            }
+            //for (auto& kvp : labelCounts)
+            //{
+            //    printf("[%3d] : %5d\n", kvp.first, kvp.second);
+            //}
 
-            printf("=================================================\n");
+            //printf("=================================================\n");
 
-            for (auto& kvp : labelCounts)
-            {
-                printf("[%3d] : %5d\n", kvp.first, kvp.second);
-            }
+            //for (auto& kvp : labelCounts)
+            //{
+            //    printf("[%3d] : %5d\n", kvp.first, kvp.second);
+            //}
 
             PointCloudBuffers d_tempBuffers;
             d_tempBuffers.Initialize(pointCloud.GetNumberOfPoints(), false);
@@ -152,7 +184,7 @@ int main(int argc, char** argv)
             entity->SetVisibility(false);
         }
 
-
+        /*
         {
             auto entity = app.CreateEntity("Clustering Sub");
             entity->CopyFrom(defaultEntity);
@@ -175,6 +207,7 @@ int main(int argc, char** argv)
 
             entity->SetVisibility(false);
         }
+        */
 
         /*
         {
@@ -201,6 +234,7 @@ int main(int argc, char** argv)
         }
         */
 
+        /*
         {
             auto entity = app.CreateEntity("Normal Divergence");
             entity->CopyFrom(defaultEntity);
@@ -223,7 +257,8 @@ int main(int argc, char** argv)
 
             entity->SetVisibility(false);
         }
-        
+        */
+
         {
             auto entity = app.CreateEntity("Voxels");
 

@@ -9,7 +9,10 @@ set(VTK_DIR "${CMAKE_SOURCE_DIR}/ext/VTK/build")
 find_package(VTK REQUIRED COMPONENTS
     CommonCore
     CommonDataModel
+    IOGeometry
+    IOPLY
     FiltersCore
+    FiltersPoints
     FiltersSources
     RenderingCore
     RenderingOpenGL2
@@ -23,6 +26,8 @@ enable_language(CUDA)
 
 # 소스 수집 (CUDA 포함)
 file(GLOB_RECURSE SOURCES "src/*.h" "src/*.hpp" "src/*.cpp" "src/*.cxx" "src/*.cuh" "src/*.cu")
+
+source_group(TREE "${CMAKE_SOURCE_DIR}/src" FILES ${SOURCES})
 
 # 실행 파일 생성
 add_executable(FeverTime ${SOURCES})

@@ -1,9 +1,8 @@
 #pragma once
 
-#include <stdHeaderFiles.h>
-#include <vtkHeaderFiles.h>
+#include <Common.h>
 
-#include <PointCloud.cuh>
+#include <CUDA/PointCloud.cuh>
 
 class Entity
 {

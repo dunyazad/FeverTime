@@ -8,6 +8,36 @@
 #include <AppCallbacks.h>
 #include <Entity.h>
 
+class TimerCallback : public vtkCommand
+{
+public:
+	static TimerCallback* New();
+	TimerCallback() = default;
+
+	App* app;
+	void SetApp(App* app);
+
+	virtual void Execute(vtkObject* caller, unsigned long eventId, void* vtkNotUsed(callData)) override;
+
+private:
+	void OnTimer();
+};
+
+class PostRenderCallback : public vtkCommand
+{
+public:
+	static PostRenderCallback* New();
+	PostRenderCallback() = default;
+
+	App* app;
+	void SetApp(App* app);
+
+	virtual void Execute(vtkObject* caller, unsigned long eventId, void* vtkNotUsed(callData)) override;
+
+private:
+	void OnPostRender();
+};
+
 class App
 {
 public:
@@ -18,6 +48,12 @@ public:
 	void Terminate();
 
 	void Run();
+
+	void OnUpdate();
+	void OnPostRender();
+
+	void CaptureColorAndDepth(const string& saveDirectory);
+	void CaptureAsPointCloud(const string& saveDirectory);
 
 	Entity* CreateEntity(const string& name = "");
 	Entity* GetEntity(const string& name);
@@ -78,11 +114,17 @@ private:
 	function<void(App&)> onInitializeCallback;
 	function<void()> onTerminateCallback;
 
+	vtkSmartPointer<TimerCallback> timerCallback;
+	vtkSmartPointer<PostRenderCallback> postRenderCallback;
+
+	map<string, function<void(App*)>> appUpdateCallbacks;
+	map<string, function<void(App*)>> appPostRenderCallbacks;
+
 	vtkSmartPointer<vtkRenderer> renderer = vtkSmartPointer<vtkRenderer>::New();
 	vtkSmartPointer<vtkRenderWindow> renderWindow = vtkSmartPointer<vtkRenderWindow>::New();
 	vtkSmartPointer<vtkRenderWindowInteractor> interactor = vtkSmartPointer<vtkRenderWindowInteractor>::New();
 	vtkSmartPointer<vtkInteractorStyleTrackballCamera> interactorStyle = vtkSmartPointer<CustomInteractorStyle>::New();
-
+	
 	map<string, unsigned int> nameEntityIndexMapping;
 	vector<Entity*> entities;
 	unsigned int activeEntityIndex = 0;
