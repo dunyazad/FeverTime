@@ -2,6 +2,8 @@
 
 #include <cudaHeaderFiles.h>
 
+#include <thrustHeaderFiles.h>
+
 #include <Eigen/Core>
 #include <Eigen/Dense>
 #include <Eigen/Geometry>

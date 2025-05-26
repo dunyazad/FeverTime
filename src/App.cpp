@@ -74,6 +74,13 @@ void App::Initialize()
     interactor->SetInteractorStyle(interactorStyle);
     interactor->Initialize();
 
+#ifdef _WINDOWS
+	MaximizeConsoleWindowOnMonitor(1);
+
+	HWND hwnd = reinterpret_cast<HWND>(renderWindow->GetGenericWindowId());
+	MaximizeWindowOnMonitor(hwnd, 2);
+#endif
+
 	VisualDebugging::Initialize(renderer);
 
     if (nullptr != onInitializeCallback)
@@ -94,13 +101,6 @@ void App::Run()
 {
     renderer->ResetCamera();
 	renderWindow->Render();
-
-#ifdef _WINDOWS
-    MaximizeConsoleWindowOnMonitor(1);
-
-    HWND hwnd = reinterpret_cast<HWND>(renderWindow->GetGenericWindowId());
-    MaximizeWindowOnMonitor(hwnd, 2);
-#endif
 
     timerCallback = vtkSmartPointer<TimerCallback>::New();
     timerCallback->SetApp(this);

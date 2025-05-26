@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
 project(FeverTime LANGUAGES CXX CUDA)
 
+set(CMAKE_CUDA_STANDARD 17)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -20,6 +21,14 @@ find_package(VTK REQUIRED COMPONENTS
     RenderingFreeType
     IOInfovis
 )
+
+include(FetchContent)
+FetchContent_Declare(
+  cuco
+  GIT_REPOSITORY https://github.com/NVIDIA/cuCollections.git
+  GIT_TAG main
+)
+FetchContent_MakeAvailable(cuco)
 
 # CUDA 설정
 enable_language(CUDA)

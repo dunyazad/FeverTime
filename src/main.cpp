@@ -46,6 +46,24 @@ const string resource_file_name = "Serialized";
 const string resource_file_name_ply = "../../res/3D/" + resource_file_name + ".ply";
 const string resource_file_name_alp = "../../res/3D/" + resource_file_name + ".alp";
 
+string lscFile = "../../res/Upper.lsc";
+string lspFile = "../../res/Upper.lsp";
+string binFile = "../../res/data_2.bin";
+
+struct HPatch
+{
+    size_t streamPos;
+    Eigen::Matrix4f transform_0;
+    Eigen::Matrix4f transform_45;
+    Eigen::AlignedBox3f aabb_0;
+    Eigen::AlignedBox3f aabb_45;
+    bool aiMode;
+    bool metalMode;
+    bool softTissueMode;
+    bool ICPSuccessAfterGlobal;
+    unsigned short matchedStartPatchIDAfterGlobal;
+};
+
 int main(int argc, char** argv)
 {
     App app;
@@ -75,6 +93,95 @@ int main(int argc, char** argv)
         }
 
         app.GetRenderer()->SetBackground(0.3, 0.5, 0.7);
+
+        /*
+        {
+            FILE* fp = NULL;
+            fopen_s(&fp, lspFile.c_str(), "rb");
+
+            int iFormatVersionMajor = -1;
+            int iFormatVersionMinor = -1;
+            int iFormatVersionPatch = -1;
+
+            if (fp != NULL) {
+                fread(&iFormatVersionMajor, sizeof(int), 1, fp);
+                fread(&iFormatVersionMinor, sizeof(int), 1, fp);
+                fread(&iFormatVersionPatch, sizeof(int), 1, fp);
+
+                //printf("%d, %d, %d\n", iFormatVersionMajor, iFormatVersionMinor, iFormatVersionPatch);
+
+                //unsigned long ulVertexCount = 0;
+                //unsigned long ulPointIndexCount = 0;
+                //if (fread(&ulVertexCount, sizeof(unsigned long), 1, fp) != 1) return;
+                //if (fread(&ulPointIndexCount, sizeof(unsigned long), 1, fp) != 1) return;
+
+                //printf("ulVertexCount : %llu, ulPointIndexCount : %llu\n", ulVertexCount, ulPointIndexCount);
+
+                unsigned int iPatchCount = 0;
+                fread(&iPatchCount, sizeof(int), 1, fp);
+
+                printf("iPatchCount : %d\n", iPatchCount);
+
+                for (size_t i = 0; i < iPatchCount; i++)
+                {
+                    size_t streamPos;
+                    fread(&streamPos, sizeof(size_t), 1, fp);
+
+                    printf("streamPos : %llu\n", streamPos);
+
+                    Eigen::Matrix4f transform_0;
+                    fread(&transform_0, sizeof(float) * 16, 1, fp);
+
+                    Eigen::Matrix4f transform_45;
+                    fread(&transform_45, sizeof(float) * 16, 1, fp);
+
+                    Eigen::Vector3f min_0, max_0;
+                    fread(&min_0, sizeof(float) * 3, 1, fp);
+                    fread(&max_0, sizeof(float) * 3, 1, fp);
+
+                    printf("%.4f, %.4f, %.4f\n", min_0.x(), min_0.y(), min_0.z());
+
+                    Eigen::Vector3f min_45, max_45;
+                    fread(&min_45, sizeof(float) * 3, 1, fp);
+                    fread(&max_45, sizeof(float) * 3, 1, fp);
+
+                    Eigen::AlignedBox3f aabb_0;
+                    Eigen::AlignedBox3f aabb_45;
+
+                    bool aiMode;
+                    fread(&aiMode, sizeof(bool), 1, fp);
+
+                    bool metalMode;
+                    fread(&metalMode, sizeof(bool), 1, fp);
+
+                    bool softTissueMode;
+                    fread(&softTissueMode, sizeof(bool), 1, fp);
+
+                    bool ICPSuccessAfterGlobal;
+                    fread(&ICPSuccessAfterGlobal, sizeof(bool), 1, fp);
+
+                    unsigned short matchedStartPatchIDAfterGlobal;
+                    fread(&matchedStartPatchIDAfterGlobal, sizeof(unsigned short), 1, fp);
+                }
+
+                for (size_t i = 0; i < iPatchCount; i++)
+                {
+                    int imageDataSize = 0;
+                    size_t readCount = fread(&imageDataSize, sizeof(imageDataSize), 1, fp);
+
+                    printf("imageDataSize : %d\n", imageDataSize);
+                }
+                //for (int i = 0; i < iPatchCount; i++) {
+                //    HPatch patch;
+                //    patchLoader.LoadPatchInfo_1_0_3(patchInfoFp, patch);
+                //    kpPatchGroup->AddPatch(std::move(patch));
+                //}
+                //fclose(patchInfoFp);
+            }
+        }
+
+        return;
+        */
 
         //auto roi = Eigen::AlignedBox3f(Eigen::Vector3f(0.0f, -60.0f, -5.0f), Eigen::Vector3f(20.0f, -30.0f, 25.0f));
         auto roi = Eigen::AlignedBox3f(Eigen::Vector3f(-FLT_MAX, -FLT_MAX, -FLT_MAX), Eigen::Vector3f(FLT_MAX, FLT_MAX, FLT_MAX));
@@ -136,7 +243,17 @@ int main(int argc, char** argv)
 
             checkOverlap.RunAlgorithm(&pointCloud);
 
+            //PointCloud tempPointCloud;
+            //tempPointCloud.Initialize(pointCloud.GetHashMap().info.h_numberOfOccupiedVoxels);
+
+            //pointCloud.SerializeVoxels(tempPointCloud.GetDeviceBuffers());
+
+            //pointCloud.DtoH();
+
             entity->FromPointCloudBuffers(&pointCloud.GetDeviceBuffers());
+
+            //auto voxelsEntity = app.CreateEntity("Check Overlap Voxels");
+            //voxelsEntity->FromPointCloud(&tempPointCloud);
         }
 
         /*

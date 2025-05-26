@@ -7,6 +7,8 @@
 struct HashMapVoxel
 {
     int3 coord = make_int3(0, 0, 0);
+    uint8_t reservedToDeleted = 0;
+    uint8_t deleted = 0;
     unsigned int label = 0;
     unsigned int subLabel = 0;
     Eigen::Vector3f position = Eigen::Vector3f(0.0f, 0.0f, 0.0f);
@@ -52,3 +54,6 @@ struct HashMap
 
 __device__ size_t GetHashMapVoxelSlot(HashMapInfo& info, int3 coord);
 __device__ HashMapVoxel* GetHashMapVoxel(HashMapInfo& info, size_t slot);
+
+__device__ size_t InsertHashMapVoxel(HashMapInfo& info, int3 coord);
+__device__ bool DeleteHashMapVoxel(HashMapInfo& info, int3 coord);
