@@ -2,16 +2,17 @@
 
 void DevicePointCloud::Clear(size_t numberOfPoints)
 {
-	if (0 != numberOfPoints && numberOfPoints != points.size())
+	if (0 != numberOfPoints && numberOfElements < numberOfPoints)
 	{
+		numberOfElements = numberOfPoints;
 		points.resize(numberOfPoints);
 		normals.resize(numberOfPoints);
 		colors.resize(numberOfPoints);
 	}
 
-	thrust::fill(points.begin(), points.end(), make_float3(0.0f, 0.0f, 0.0f));
-	thrust::fill(normals.begin(), normals.end(), make_float3(0.0f, 0.0f, 0.0f));
-	thrust::fill(colors.begin(), colors.end(), make_uchar4(0, 0, 0, 255));
+	thrust::fill(points.begin(), points.begin() + numberOfPoints, make_float3(0.0f, 0.0f, 0.0f));
+	thrust::fill(normals.begin(), normals.begin() + numberOfPoints, make_float3(0.0f, 0.0f, 0.0f));
+	thrust::fill(colors.begin(), colors.begin() + numberOfPoints, make_uchar4(0, 0, 0, 255));
 
 	aabb = Eigen::AlignedBox3f(
 		Eigen::Vector3f(FLT_MAX, FLT_MAX, FLT_MAX),
@@ -20,30 +21,68 @@ void DevicePointCloud::Clear(size_t numberOfPoints)
 
 void DevicePointCloud::CopyFrom(HostPointCloud* pointCloud)
 {
-	points.resize(pointCloud->points.size());
-	thrust::copy(pointCloud->points.begin(), pointCloud->points.end(), points.begin());
+	if (numberOfElements < pointCloud->numberOfElements)
+	{
+		numberOfElements = pointCloud->numberOfElements;
+		points.resize(numberOfElements);
+		normals.resize(numberOfElements);
+		colors.resize(numberOfElements);
+	}
 
-	normals.resize(pointCloud->normals.size());
-	thrust::copy(pointCloud->normals.begin(), pointCloud->normals.end(), normals.begin());
-
-	colors.resize(pointCloud->colors.size());
-	thrust::copy(pointCloud->colors.begin(), pointCloud->colors.end(), colors.begin());
+	thrust::copy(pointCloud->points.begin(), pointCloud->points.begin() + numberOfElements, points.begin());
+	thrust::copy(pointCloud->normals.begin(), pointCloud->normals.begin() + numberOfElements, normals.begin());
+	thrust::copy(pointCloud->colors.begin(), pointCloud->colors.begin() + numberOfElements, colors.begin());
 
 	pointCloud->aabb = aabb;
 }
 
 void DevicePointCloud::CopyTo(HostPointCloud* pointCloud)
 {
-	pointCloud->points.resize(points.size());
-	thrust::copy(points.begin(), points.end(), pointCloud->points.begin());
-	
-	pointCloud->normals.resize(normals.size());
-	thrust::copy(normals.begin(), normals.end(), pointCloud->normals.begin());
-	
-	pointCloud->colors.resize(colors.size());
-	thrust::copy(colors.begin(), colors.end(), pointCloud->colors.begin());
+	if (pointCloud->numberOfElements < numberOfElements)
+	{
+		pointCloud->numberOfElements = numberOfElements;
+		pointCloud->points.resize(numberOfElements);
+		pointCloud->normals.resize(numberOfElements);
+		pointCloud->colors.resize(numberOfElements);
+	}
+
+	thrust::copy(points.begin(), points.begin() + numberOfElements, pointCloud->points.begin());
+	thrust::copy(normals.begin(), normals.begin() + numberOfElements, pointCloud->normals.begin());
+	thrust::copy(colors.begin(),  colors.begin() + numberOfElements, pointCloud->colors.begin());
 
 	aabb = pointCloud->aabb;
+}
+
+void DevicePointCloud::Compact()
+{
+	auto is_invalid = [] __device__(const TupleType & t)
+	{
+		const float3& p = thrust::get<0>(t);
+		return (FLT_MAX == p.x && FLT_MAX == p.y && FLT_MAX == p.z);
+	};
+
+	DeviceZipIter zip_begin = thrust::make_zip_iterator(thrust::make_tuple(
+		points.begin(), normals.begin(), colors.begin()));
+	DeviceZipIter zip_end = thrust::make_zip_iterator(thrust::make_tuple(
+		points.end(), normals.end(), colors.end()));
+
+	DeviceZipIter zip_new_end = thrust::remove_if(thrust::device, zip_begin, zip_end, is_invalid);
+
+	numberOfElements = thrust::get<0>(zip_new_end.get_iterator_tuple()) - points.begin();
+
+	points.resize(numberOfElements);
+	normals.resize(numberOfElements);
+	colors.resize(numberOfElements);
+
+	aabb = Eigen::AlignedBox3f(
+		Eigen::Vector3f(FLT_MAX, FLT_MAX, FLT_MAX),
+		Eigen::Vector3f(-FLT_MAX, -FLT_MAX, -FLT_MAX));
+
+	thrust::host_vector<float3> h_points(points);
+	for (const auto& p : h_points)
+	{
+		aabb.extend(Eigen::Vector3f(p.x, p.y, p.z));
+	}
 }
 
 bool DevicePointCloud::LoadFromPLY(const string& filename)
@@ -370,6 +409,35 @@ void HostPointCloud::CopyTo(DevicePointCloud* pointCloud)
 	thrust::copy(colors.begin(), colors.end(), pointCloud->colors.begin());
 
 	aabb = pointCloud->aabb;
+}
+
+void HostPointCloud::Compact()
+{
+	auto is_invalid = [] __device__(const TupleType & t)
+	{
+		const float3& p = thrust::get<0>(t);
+		return (FLT_MAX == p.x && FLT_MAX == p.y && FLT_MAX == p.z);
+	};
+
+	HostZipIter zip_begin = thrust::make_zip_iterator(thrust::make_tuple(points.begin(), normals.begin(), colors.begin()));
+	HostZipIter zip_end = thrust::make_zip_iterator(thrust::make_tuple(points.end(), normals.end(), colors.end()));
+
+	HostZipIter zip_new_end = thrust::remove_if(thrust::host, zip_begin, zip_end, is_invalid);
+
+	numberOfElements = thrust::get<0>(zip_new_end.get_iterator_tuple()) - points.begin();
+
+	points.resize(numberOfElements);
+	normals.resize(numberOfElements);
+	colors.resize(numberOfElements);
+
+	aabb = Eigen::AlignedBox3f(
+		Eigen::Vector3f(FLT_MAX, FLT_MAX, FLT_MAX),
+		Eigen::Vector3f(-FLT_MAX, -FLT_MAX, -FLT_MAX));
+
+	for (const auto& p : points)
+	{
+		aabb.extend(Eigen::Vector3f(p.x, p.y, p.z));
+	}
 }
 
 bool HostPointCloud::LoadFromPLY(const string& filename)

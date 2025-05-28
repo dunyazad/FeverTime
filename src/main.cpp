@@ -200,13 +200,14 @@ int main(int argc, char** argv)
         }
 
         {
-            HostPointCloud d_pcd;
+            HostPointCloud pcd;
 
-            auto roi = Eigen::AlignedBox3f(Eigen::Vector3f(0.0f, -60.0f, -5.0f), Eigen::Vector3f(20.0f, -30.0f, 25.0f));
-            d_pcd.LoadFromPLY(resource_file_name_ply, roi);
+            //auto roi = Eigen::AlignedBox3f(Eigen::Vector3f(0.0f, -60.0f, -5.0f), Eigen::Vector3f(20.0f, -30.0f, 25.0f));
+            //pcd.LoadFromPLY(resource_file_name_ply, roi);
+            pcd.LoadFromPLY(resource_file_name_ply, roi);
 
-            d_pcd.SaveToPLY("C:\\Resources\\Debug\\Test.ply");
-            d_pcd.SaveToALP(resource_file_name_alp);
+            pcd.SaveToPLY("C:\\Resources\\Debug\\Test.ply");
+            pcd.SaveToALP(resource_file_name_alp);
         }
 
         //map<uint3, unsigned int> colorHistogram;
