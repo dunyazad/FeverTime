@@ -42,7 +42,8 @@ void findTopTwo(const map<uint3, unsigned int>& colorHistogram) {
 
 
 //const string resource_file_name = "Compound_Full";
-const string resource_file_name = "Serialized";
+//const string resource_file_name = "Serialized";
+const string resource_file_name = "BasePoints";
 const string resource_file_name_ply = "../../res/3D/" + resource_file_name + ".ply";
 const string resource_file_name_alp = "../../res/3D/" + resource_file_name + ".alp";
 
@@ -198,6 +199,16 @@ int main(int argc, char** argv)
             }
         }
 
+        {
+            HostPointCloud d_pcd;
+
+            auto roi = Eigen::AlignedBox3f(Eigen::Vector3f(0.0f, -60.0f, -5.0f), Eigen::Vector3f(20.0f, -30.0f, 25.0f));
+            d_pcd.LoadFromPLY(resource_file_name_ply, roi);
+
+            d_pcd.SaveToPLY("C:\\Resources\\Debug\\Test.ply");
+            d_pcd.SaveToALP(resource_file_name_alp);
+        }
+
         //map<uint3, unsigned int> colorHistogram;
         //for (size_t i = 0; i < pointCloud.GetNumberOfPoints(); i++)
         //{
@@ -219,6 +230,53 @@ int main(int argc, char** argv)
 
         app.GetRenderer()->ResetCamera();
         app.GetRenderWindow()->Render();
+
+        {
+            auto entity = app.CreateEntity("Clustering");
+            entity->CopyFrom(defaultEntity);
+
+            auto clusteringResult = pointCloud.Clustering(25.0f);
+            map<unsigned int, unsigned int> labelCounts;
+            map<unsigned int, unsigned int> subLabelCounts;
+            for (auto& lc : clusteringResult)
+            {
+                labelCounts[lc.x] = lc.y;
+                subLabelCounts[lc.x] = lc.z;
+            }
+
+            //for (auto& kvp : labelCounts)
+            //{
+            //    printf("[%3d] : %5d\n", kvp.first, kvp.second);
+            //}
+
+            //printf("=================================================\n");
+
+            //for (auto& kvp : labelCounts)
+            //{
+            //    printf("[%3d] : %5d\n", kvp.first, kvp.second);
+            //}
+
+            PointCloudBuffers d_tempBuffers;
+            d_tempBuffers.Initialize(pointCloud.GetNumberOfPoints(), false);
+
+            pointCloud.SerializeColoringByLabel(d_tempBuffers);
+
+            PointCloudBuffers h_tempBuffers;
+            h_tempBuffers.Initialize(pointCloud.GetNumberOfPoints(), true);
+            d_tempBuffers.CopyTo(h_tempBuffers);
+
+            entity->UpdateColorFromBuffer(h_tempBuffers);
+
+            d_tempBuffers.Terminate();
+            h_tempBuffers.Terminate();
+
+            entity->SetVisibility(false);
+        }
+
+
+ /*       {
+            pointCloud.GetHashMap().SerializeSDFToPLY("C:\\Resources\\Debug\\Serialized\\SDF.ply");
+        }*/
 
         //pointCloud.ComputeVoxelNormalPCA();
         //pointCloud.ComputeVoxelNormalAverage();

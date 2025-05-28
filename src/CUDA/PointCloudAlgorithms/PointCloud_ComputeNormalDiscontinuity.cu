@@ -7,7 +7,7 @@ __global__ void Kernel_ClearNormalDiscontinuity(HashMapInfo info)
 
 	int3 coord = info.d_occupiedVoxelIndices[threadid];
 	size_t slot = GetHashMapVoxelSlot(info, coord);
-	if (slot == UINT64_MAX) return;
+	if (INVALID_VOXEL_SLOT == slot) return;
 
 	auto voxel = GetHashMapVoxel(info, slot);
 
@@ -21,7 +21,7 @@ __global__ void Kernel_ComputeNormalDiscontinuity(HashMapInfo info, float normal
 
 	int3 coord = info.d_occupiedVoxelIndices[threadid];
 	size_t slot = GetHashMapVoxelSlot(info, coord);
-	if (slot == UINT64_MAX) return;
+	if (INVALID_VOXEL_SLOT == slot) return;
 
 	HashMapVoxel* centerVoxel = GetHashMapVoxel(info, slot);
 	if (centerVoxel == nullptr || centerVoxel->label == 0) return;

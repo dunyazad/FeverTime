@@ -7,7 +7,7 @@ __global__ void Kernel_ComputeNormalDivergence(HashMapInfo info)
 
 	int3 coord = info.d_occupiedVoxelIndices[threadid];
 	auto voxelSlot = GetHashMapVoxelSlot(info, coord);
-	if (voxelSlot == UINT64_MAX) return;
+	if (INVALID_VOXEL_SLOT == voxelSlot) return;
 	auto voxel = GetHashMapVoxel(info, voxelSlot);
 	if (voxel == nullptr || voxel->label == 0) return;
 
@@ -28,7 +28,7 @@ __global__ void Kernel_ComputeNormalDivergence(HashMapInfo info)
 			coord.z + offsets[ni].z);
 
 		auto neighborVoxelSlot = GetHashMapVoxelSlot(info, neighborCoord);
-		if (neighborVoxelSlot == UINT64_MAX) continue;
+		if (INVALID_VOXEL_SLOT == neighborVoxelSlot) continue;
 
 		auto neighborVoxel = GetHashMapVoxel(info, neighborVoxelSlot);
 		if (neighborVoxel == nullptr || neighborVoxel->label == 0) continue;

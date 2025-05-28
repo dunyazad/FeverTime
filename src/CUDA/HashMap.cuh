@@ -4,6 +4,9 @@
 #include <CUDA/PointCloudBuffers.cuh>
 #include <CUDA/LabelCounter.cuh>
 
+#define INVALID_VOXEL_SLOT UINT64_MAX
+#define INVALID_VOXEL nullptr
+
 struct HashMapVoxel
 {
     int3 coord = make_int3(0, 0, 0);
@@ -21,6 +24,7 @@ struct HashMapVoxel
     Eigen::Vector3f gradient = Eigen::Vector3f(0.0f, 0.0f, 0.0f);
     float colorDistance = 0.0f;
     uint8_t normalDiscontinue = 0;
+    float sdf = 0.0f;
 };
 
 struct HashMapInfo
@@ -50,6 +54,8 @@ struct HashMap
     void CountLabels();
 
     void SerializeToPLY(const string& filename);
+
+    void SerializeSDFToPLY(const string& filename);
 };
 
 __device__ size_t GetHashMapVoxelSlot(HashMapInfo& info, int3 coord);

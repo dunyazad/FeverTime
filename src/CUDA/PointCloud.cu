@@ -258,7 +258,6 @@ bool PointCloud::SaveToALP(const std::string& filename)
 	return true;
 }
 
-
 __global__ void Kernel_SerializeVoxels(HashMapInfo info, PointCloudBuffers buffers)
 {
 	unsigned int threadid = blockDim.x * blockIdx.x + threadIdx.x;
@@ -266,7 +265,7 @@ __global__ void Kernel_SerializeVoxels(HashMapInfo info, PointCloudBuffers buffe
 
 	int3 coord = info.d_occupiedVoxelIndices[threadid];
 	size_t slot = GetHashMapVoxelSlot(info, coord);
-	if (slot == UINT64_MAX) return;
+	if (INVALID_VOXEL_SLOT == INVALID_VOXEL_SLOT == slot) return;
 
 	HashMapVoxel* voxel = GetHashMapVoxel(info, slot);
 	if (voxel == nullptr) return;
@@ -301,7 +300,7 @@ __global__ void Kernel_SerializeVoxelsColoringByLabel(HashMapInfo info, PointClo
 
 	int3 coord = info.d_occupiedVoxelIndices[threadid];
 	size_t slot = GetHashMapVoxelSlot(info, coord);
-	if (slot == UINT64_MAX) return;
+	if (INVALID_VOXEL_SLOT == slot) return;
 
 	HashMapVoxel* voxel = GetHashMapVoxel(info, slot);
 	if (voxel == nullptr) return;
@@ -407,7 +406,7 @@ __global__ void Kernel_ClearLabels(HashMapInfo info)
 
 	int3 coord = info.d_occupiedVoxelIndices[threadid];
 	size_t slot = GetHashMapVoxelSlot(info, coord);
-	if (slot == UINT64_MAX) return;
+	if (INVALID_VOXEL_SLOT == slot) return;
 	
 	auto voxel = GetHashMapVoxel(info, slot);
 
@@ -422,7 +421,7 @@ __global__ void Kernel_InterVoxelHashMerge26Way(HashMapInfo info, float normalDe
 
 	int3 coord = info.d_occupiedVoxelIndices[threadid];
 	size_t slot = GetHashMapVoxelSlot(info, coord);
-	if (slot == UINT64_MAX) return;
+	if (INVALID_VOXEL_SLOT == slot) return;
 
 	HashMapVoxel* centerVoxel = GetHashMapVoxel(info, slot);
 	//if (centerVoxel == nullptr || centerVoxel->label == 0) return;
@@ -596,15 +595,17 @@ __global__ void Kernel_SerializeColoringByLabel(HashMapInfo info, PointCloudBuff
 			float g = hashToFloat(voxel.label * 3 + 1);
 			float b = hashToFloat(voxel.label * 3 + 2);
 
-			auto labelCount = info.labelCounter.GetCount(voxel.label);
-			if (200000 > labelCount)
-			{
-				buffers.colors[idx] = Eigen::Vector4b(r * 255.0f, g * 255.0f, b * 255.0f, 0);
-			}
-			else
-			{
-				buffers.colors[idx] = Eigen::Vector4b(r * 255.0f, g * 255.0f, b * 255.0f, 255);
-			}
+			buffers.colors[idx] = Eigen::Vector4b(r * 255.0f, g * 255.0f, b * 255.0f, 255);
+
+			//auto labelCount = info.labelCounter.GetCount(voxel.label);
+			//if (200000 > labelCount)
+			//{
+			//	buffers.colors[idx] = Eigen::Vector4b(r * 255.0f, g * 255.0f, b * 255.0f, 0);
+			//}
+			//else
+			//{
+			//	buffers.colors[idx] = Eigen::Vector4b(r * 255.0f, g * 255.0f, b * 255.0f, 255);
+			//}
 
 			return;
 		}

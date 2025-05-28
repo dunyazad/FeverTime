@@ -84,10 +84,10 @@ __global__ void Kernel_CountLabels(HashMapInfo info)
 
 	int3 coord = info.d_occupiedVoxelIndices[idx];
 	auto voxelSlot = GetHashMapVoxelSlot(info, coord);
-	if (UINT64_MAX == voxelSlot) return;
+	if (INVALID_VOXEL_SLOT == voxelSlot) return;
 
 	auto voxel = GetHashMapVoxel(info, voxelSlot);
-	if (nullptr == voxel) return;
+	if (INVALID_VOXEL == voxel) return;
 
 	info.labelCounter.IncreaseCount(voxel->label);
 	info.subLabelCounter.IncreaseCount(voxel->subLabel);
@@ -178,6 +178,135 @@ void HashMap::SerializeToPLY(const std::string& filename)
 	h_buffers.Terminate();
 }
 
+__global__ void Kernel_Compute_SDF(HashMapInfo info, PointCloudBuffers buffers)
+{
+	int idx = blockIdx.x * blockDim.x + threadIdx.x;
+	if (idx >= *info.d_numberOfOccupiedVoxels) return;
+
+	int3 coord = info.d_occupiedVoxelIndices[idx];
+	auto centerVoxelSlot = GetHashMapVoxelSlot(info, coord);
+	if (INVALID_VOXEL_SLOT == centerVoxelSlot) return;
+	auto centerVoxel = GetHashMapVoxel(info, centerVoxelSlot);
+	if (INVALID_VOXEL == centerVoxel) return;
+
+	float minDist = 1e10f;
+	float sign = 1.0f;
+
+#pragma unroll
+	for (int ni = 0; ni < 124; ++ni)
+	{
+		int3 neighborCoord = make_int3(
+			coord.x + neighbor_offsets_124[ni].x,
+			coord.y + neighbor_offsets_124[ni].y,
+			coord.z + neighbor_offsets_124[ni].z);
+
+		if (0 == neighbor_offsets_124[ni].x && 0 == neighbor_offsets_124[ni].y && 0 == neighbor_offsets_124[ni].z) continue;
+
+		size_t neighborSlot = GetHashMapVoxelSlot(info, neighborCoord);
+		if (INVALID_VOXEL_SLOT == neighborSlot)
+		{
+			neighborSlot = InsertHashMapVoxel(info, neighborCoord);
+			if (INVALID_VOXEL_SLOT != neighborSlot)
+			{
+				auto index = atomicAdd(info.d_numberOfOccupiedVoxels, 1);
+				info.d_occupiedVoxelIndices[index] = neighborCoord;
+			}
+		}
+
+		HashMapVoxel* neighborVoxel = GetHashMapVoxel(info, neighborSlot);
+		if (INVALID_VOXEL == neighborVoxel) continue;
+
+		Eigen::Vector3f p = neighborVoxel->position;
+		Eigen::Vector3f n = neighborVoxel->normal.normalized();
+		Eigen::Vector3f dir = centerVoxel->position - p;
+		float dist = dir.norm();
+
+		if (dist < minDist) {
+			minDist = dist;
+			sign = dir.dot(n) > 0 ? +1.0f : -1.0f;
+		}
+	}
+
+	centerVoxel->sdf = sign * minDist;
+}
+
+__global__ void Kernel_Serialize_SDF(HashMapInfo info, PointCloudBuffers buffers)
+{
+	int idx = blockIdx.x * blockDim.x + threadIdx.x;
+	if (idx >= *info.d_numberOfOccupiedVoxels) return;
+
+	int3 coord = info.d_occupiedVoxelIndices[idx];
+	auto centerVoxelSlot = GetHashMapVoxelSlot(info, coord);
+	if (INVALID_VOXEL_SLOT == centerVoxelSlot) return;
+	auto centerVoxel = GetHashMapVoxel(info, centerVoxelSlot);
+	if (INVALID_VOXEL == centerVoxel) return;
+
+	//printf("sdf : %f\n", centerVoxel->sdf);
+
+	if (-1 > centerVoxel->sdf || 1 < centerVoxel->sdf)
+	{
+		buffers.positions[idx] = Eigen::Vector3f(FLT_MAX, FLT_MAX, FLT_MAX);
+		return;
+	}
+
+	buffers.positions[idx] = centerVoxel->position;
+	buffers.normals[idx] = (centerVoxel->normal / (float)centerVoxel->pointCount).normalized();
+
+	if (centerVoxel->sdf <= 0.0f)
+	{
+		// Blue (0, 0, 1) to Green (0, 1, 0)
+		float t = (centerVoxel->sdf + 1.0f); // t in [0, 1]
+		buffers.colors[idx] = Eigen::Vector4b(0, t * 255.0f, (1.0f - t) * 255.0f, 255);
+	}
+	else {
+		// Green (0, 1, 0) to Red (1, 0, 0)
+		float t = centerVoxel->sdf; // t in [0, 1]
+		buffers.colors[idx] = Eigen::Vector4b(t * 255.0f, (1.0f - t) * 255.0f, 255, 255);
+	}
+}
+
+void HashMap::SerializeSDFToPLY(const std::string& filename)
+{
+	PLYFormat ply;
+
+	unsigned int numberOfOccupiedVoxels = info.h_numberOfOccupiedVoxels;
+
+	PointCloudBuffers d_buffers;
+	d_buffers.Initialize(numberOfOccupiedVoxels, false);
+
+	unsigned int blockSize = 256;
+	unsigned int gridOccupied = (numberOfOccupiedVoxels + blockSize - 1) / blockSize;
+
+	Kernel_Compute_SDF << <gridOccupied, blockSize >> > (info, d_buffers);
+
+	Kernel_Serialize_SDF << <gridOccupied, blockSize >> > (info, d_buffers);
+
+	cudaDeviceSynchronize();
+
+	PointCloudBuffers h_buffers;
+	h_buffers.Initialize(numberOfOccupiedVoxels, true);
+
+	d_buffers.CopyTo(h_buffers);
+
+	for (size_t i = 0; i < numberOfOccupiedVoxels; i++)
+	{
+		auto& p = h_buffers.positions[i];
+		auto& n = h_buffers.normals[i];
+		auto& c = h_buffers.colors[i];
+
+		if (FLT_MAX == p.x() && FLT_MAX == p.y() && FLT_MAX == p.z()) continue;
+
+		ply.AddPoint(p.x(), p.y(), p.z());
+		ply.AddNormal(n.x(), n.y(), n.z());
+		ply.AddColor(c.x() / 255.0f, c.y() / 255.0f, c.z() / 255.0f);
+	}
+
+	ply.Serialize(filename);
+
+	d_buffers.Terminate();
+	h_buffers.Terminate();
+}
+
 __device__ size_t GetHashMapVoxelSlot(HashMapInfo& info, int3 coord)
 {
 	size_t h = voxel_hash(coord, info.capacity);
@@ -194,12 +323,12 @@ __device__ size_t GetHashMapVoxelSlot(HashMapInfo& info, int3 coord)
 		}
 	}
 
-	return UINT64_MAX;
+	return INVALID_VOXEL_SLOT;
 }
 
 __device__ HashMapVoxel* GetHashMapVoxel(HashMapInfo& info, size_t slot)
 {
-	if (UINT64_MAX == slot) return nullptr;
+	if (INVALID_VOXEL_SLOT == slot) return INVALID_VOXEL;
 	return &(info.d_hashTable[slot]);
 }
 
@@ -248,7 +377,7 @@ __device__ size_t InsertHashMapVoxel(HashMapInfo& info, int3 coord)
 	}
 
 	// »ðÀÔ ½ÇÆÐ
-	return UINT64_MAX;
+	return INVALID_VOXEL_SLOT;
 }
 
 __device__ bool DeleteHashMapVoxel(HashMapInfo& info, int3 coord)

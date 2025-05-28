@@ -40,7 +40,7 @@ __global__ void Kernel_InsertPoints(TSDFInfo info, PointCloudBuffers buffers)
 
 	// 중심 voxel 슬롯을 확보 (안정성 확보용)
 	auto centerVoxelSlot = GetTSDFVoxelSlot(info, coord);
-	if (UINT64_MAX == centerVoxelSlot)
+	if (INVALID_VOXEL_SLOT == centerVoxelSlot)
 	{
 		InsertTSDFVoxel(info, coord, n, c);
 	}
@@ -65,7 +65,7 @@ __global__ void Kernel_InsertPoints(TSDFInfo info, PointCloudBuffers buffers)
 				int3 neighborCoord = make_int3(coord.x + xi, coord.y + yi, coord.z + zi);
 
 				size_t neighborSlot = GetTSDFVoxelSlot(info, neighborCoord);
-				if (neighborSlot == UINT64_MAX)
+				if (INVALID_VOXEL_SLOT == neighborSlot)
 				{
 					InsertTSDFVoxel(info, neighborCoord, n, c);
 				}
@@ -155,7 +155,7 @@ __global__ void Kernel_Serialize_TSDF(TSDFInfo info, PointCloudBuffers buffers)
 	int3 coord = info.d_occupiedVoxelIndices[idx];
 
 	auto voxelSlot = GetTSDFVoxelSlot(info, coord);
-	if (UINT64_MAX == voxelSlot) return;
+	if (INVALID_VOXEL_SLOT == voxelSlot) return;
 
 	auto voxel = GetTSDFVoxel(info, voxelSlot);
 	if (nullptr == voxel) return;
@@ -229,12 +229,12 @@ __device__ size_t GetTSDFVoxelSlot(TSDFInfo& info, int3 coord)
 		}
 	}
 
-	return UINT64_MAX;
+	return INVALID_VOXEL_SLOT;
 }
 
 __device__ TSDFVoxel* GetTSDFVoxel(TSDFInfo& info, size_t slot)
 {
-	if (UINT64_MAX == slot) return nullptr;
+	if (INVALID_VOXEL_SLOT == slot) return nullptr;
 	return &(info.d_hashTable[slot]);
 }
 

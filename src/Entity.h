@@ -15,6 +15,10 @@ public:
 	void FromPointCloudBuffers(PointCloudBuffers* buffers);
 	void FromPointCloud(PointCloud* pointCloud);
 	void FromPointCloud(PointCloud* pointCloud, const Eigen::AlignedBox3f& roi);
+	//void FromPointCloud(DevicePointCloud* pointCloud);
+	//void FromPointCloud(DevicePointCloud* pointCloud, const Eigen::AlignedBox3f& roi);
+	//void FromPointCloud(HostPointCloud* pointCloud);
+	//void FromPointCloud(HostPointCloud* pointCloud, const Eigen::AlignedBox3f& roi);
 	void CopyFrom(Entity* other);
 	void CopyFrom(Entity* other, const Eigen::AlignedBox3f& roi);
 	void CopyTo(Entity* other);

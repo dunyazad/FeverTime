@@ -7,7 +7,7 @@ __global__ void Kernel_ComputeVoxelNormalAverage(HashMapInfo info)
 
 	int3 coord = info.d_occupiedVoxelIndices[threadid];
 	size_t slot = GetHashMapVoxelSlot(info, coord);
-	if (slot == UINT64_MAX) return;
+	if (INVALID_VOXEL_SLOT == slot) return;
 
 	HashMapVoxel* centerVoxel = GetHashMapVoxel(info, slot);
 	if (centerVoxel == nullptr || centerVoxel->label == 0) return;

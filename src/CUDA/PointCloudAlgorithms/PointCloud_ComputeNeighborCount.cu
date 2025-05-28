@@ -7,7 +7,7 @@ __global__ void Kernel_ComputeNeighborCount(HashMapInfo info)
 
 	int3 coord = info.d_occupiedVoxelIndices[threadid];
 	size_t slot = GetHashMapVoxelSlot(info, coord);
-	if (slot == UINT64_MAX) return;
+	if (INVALID_VOXEL_SLOT == slot) return;
 
 	HashMapVoxel* centerVoxel = GetHashMapVoxel(info, slot);
 	if (centerVoxel == nullptr || centerVoxel->label == 0) return;
@@ -23,7 +23,7 @@ __global__ void Kernel_ComputeNeighborCount(HashMapInfo info)
 			coord.z + neighbor_offsets_26[ni].z);
 
 		size_t neighborSlot = GetHashMapVoxelSlot(info, neighborCoord);
-		if (UINT64_MAX == neighborSlot) continue;
+		if (INVALID_VOXEL_SLOT == neighborSlot) continue;
 		HashMapVoxel* neighborVoxel = GetHashMapVoxel(info, neighborSlot);
 
 		if (neighborVoxel != nullptr && neighborVoxel->label != 0)

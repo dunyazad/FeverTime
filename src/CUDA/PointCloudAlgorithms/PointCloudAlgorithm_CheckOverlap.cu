@@ -18,7 +18,7 @@ __global__ void Kernel_Prepare_CheckOverlap(HashMapInfo info)
 
 	int3 coord = info.d_occupiedVoxelIndices[threadid];
 	size_t slot = GetHashMapVoxelSlot(info, coord);
-	if (slot == UINT64_MAX) return;
+	if (INVALID_VOXEL_SLOT == slot) return;
 
 	HashMapVoxel* centerVoxel = GetHashMapVoxel(info, slot);
 	if (centerVoxel == nullptr || centerVoxel->label == 0) return;
@@ -39,7 +39,7 @@ __global__ void Kernel_CheckOverlap(
 
 	int3 coord = info.d_occupiedVoxelIndices[threadid];
 	size_t slot = GetHashMapVoxelSlot(info, coord);
-	if (slot == UINT64_MAX) return;
+	if (INVALID_VOXEL_SLOT == slot) return;
 
 	HashMapVoxel* centerVoxel = GetHashMapVoxel(info, slot);
 	if (centerVoxel == nullptr) return;
@@ -53,8 +53,8 @@ __global__ void Kernel_CheckOverlap(
 	Eigen::Vector3f normalSum = centerNormal;
 	Eigen::Vector3f colorSum = Eigen::Vector3f((float)centerColor.x() / 255.0f, (float)centerColor.y() / 255.0f, (float)centerColor.z() / 255.0f);
 
-	int step = 3;
-	for (int i = 1; i < step; i++)
+	int step = 30;
+	for (int i = 2; i < step; i++)
 	{
 		auto position = centerPosition + centerNormal * info.voxelSize * (float)i;
 
@@ -64,7 +64,7 @@ __global__ void Kernel_CheckOverlap(
 			floorf(position.z() / info.voxelSize));
 
 		size_t targetSlot = GetHashMapVoxelSlot(info, targetCoord);
-		if (UINT64_MAX == targetSlot) continue;
+		if (INVALID_VOXEL_SLOT == targetSlot) continue;
 		HashMapVoxel* targetVoxel = GetHashMapVoxel(info, targetSlot);
 		if (targetVoxel == nullptr) continue;
 
@@ -72,30 +72,32 @@ __global__ void Kernel_CheckOverlap(
 
 		if (angleThreshold * M_PI / 180.0f > acosf(centerNormal.dot(targetNormal)))
 		{
-			//targetVoxel->color = Eigen::Vector4b(255, 0, 0, 255);
+			targetVoxel->color = Eigen::Vector4b(255, 0, 0, 255);
 
-			positionSum += Eigen::Vector3f((float)targetCoord.x * info.voxelSize, (float)targetCoord.y * info.voxelSize, (float)targetCoord.z * info.voxelSize);
-			normalSum += targetNormal;
-			colorSum += Eigen::Vector3f((float)targetVoxel->color.x() / 255.0f, (float)targetVoxel->color.y() / 255.0f, (float)targetVoxel->color.z() / 255.0f);
-			count++;
+			//positionSum += Eigen::Vector3f((float)targetCoord.x * info.voxelSize, (float)targetCoord.y * info.voxelSize, (float)targetCoord.z * info.voxelSize);
+			//normalSum += targetNormal;
+			//colorSum += Eigen::Vector3f((float)targetVoxel->color.x() / 255.0f, (float)targetVoxel->color.y() / 255.0f, (float)targetVoxel->color.z() / 255.0f);
+			//count++;
 
-			targetVoxel->reservedToDeleted = 1;
+			//targetVoxel->reservedToDeleted = 1;
 		}
 	}
 
 	if (1 < count)
 	{
-		centerVoxel->reservedToDeleted = 1;
+		centerVoxel->color = Eigen::Vector4b(255, 0, 0, 255);
 
-		auto meanPosition = positionSum / (float)count;
-		int3 meanCoord = make_int3(floorf(meanPosition.x() / info.voxelSize), floorf(meanPosition.y() / info.voxelSize), floorf(meanPosition.z() / info.voxelSize));
-		auto meanNormal = normalSum / (float)count;
-		auto meanColor = colorSum / (float)count;
+	//	centerVoxel->reservedToDeleted = 1;
 
-		auto index = atomicAdd(numberOfNewPoints, 1);
-		d_newPoints[index] = meanPosition;
-		d_newNormals[index] = meanNormal;
-		d_newColors[index] = Eigen::Vector4b(meanColor.x() * 255.0f, meanColor.y() * 255.0f, meanColor.z() * 255.0f, 255);
+	//	auto meanPosition = positionSum / (float)count;
+	//	int3 meanCoord = make_int3(floorf(meanPosition.x() / info.voxelSize), floorf(meanPosition.y() / info.voxelSize), floorf(meanPosition.z() / info.voxelSize));
+	//	auto meanNormal = normalSum / (float)count;
+	//	auto meanColor = colorSum / (float)count;
+
+	//	auto index = atomicAdd(numberOfNewPoints, 1);
+	//	d_newPoints[index] = meanPosition;
+	//	d_newNormals[index] = meanNormal;
+	//	d_newColors[index] = Eigen::Vector4b(meanColor.x() * 255.0f, meanColor.y() * 255.0f, meanColor.z() * 255.0f, 255);
 	}
 }
 
@@ -106,7 +108,7 @@ __global__ void Kernel_Delete_Reserved(HashMapInfo info, unsigned int* d_numberO
 
 	int3 coord = info.d_occupiedVoxelIndices[threadid];
 	size_t slot = GetHashMapVoxelSlot(info, coord);
-	if (slot == UINT64_MAX) return;
+	if (INVALID_VOXEL_SLOT == slot) return;
 
 	HashMapVoxel* centerVoxel = GetHashMapVoxel(info, slot);
 	if (centerVoxel == nullptr) return;
@@ -127,7 +129,7 @@ __global__ void Kernel_Serialize_CheckOverlapResult(HashMapInfo info, PointCloud
 	auto& p = buffers.positions[idx];
 	int3 coord = make_int3(floorf(p.x() / info.voxelSize), floorf(p.y() / info.voxelSize), floorf(p.z() / info.voxelSize));
 	size_t slot = GetHashMapVoxelSlot(info, coord);
-	if (UINT64_MAX == slot)
+	if (INVALID_VOXEL_SLOT == slot)
 	{
 		buffers.positions[idx] = Eigen::Vector3f::Zero();
 		buffers.normals[idx] = Eigen::Vector3f::Zero();

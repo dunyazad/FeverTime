@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.16)
 project(FeverTime LANGUAGES CXX CUDA)
 
 set(CMAKE_CUDA_STANDARD 17)
+set(CMAKE_CUDA_ARCHITECTURES "native")
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -21,14 +23,6 @@ find_package(VTK REQUIRED COMPONENTS
     RenderingFreeType
     IOInfovis
 )
-
-include(FetchContent)
-FetchContent_Declare(
-  cuco
-  GIT_REPOSITORY https://github.com/NVIDIA/cuCollections.git
-  GIT_TAG main
-)
-FetchContent_MakeAvailable(cuco)
 
 # CUDA 설정
 enable_language(CUDA)
@@ -82,4 +76,8 @@ set_target_properties(FeverTime PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_SOURCE_DIR}/bin/Debug"
     RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_SOURCE_DIR}/bin/Release"
     VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/bin/$<CONFIG>"
+)
+
+target_compile_options(FeverTime PRIVATE
+    $<$<COMPILE_LANGUAGE:CUDA>:--expt-extended-lambda>
 )

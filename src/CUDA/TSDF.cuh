@@ -4,6 +4,9 @@
 #include <CUDA/PointCloudBuffers.cuh>
 #include <CUDA/LabelCounter.cuh>
 
+#define INVALID_VOXEL_SLOT UINT64_MAX
+#define INVALID_VOXEL nullptr
+
 struct TSDFVoxel
 {
     int3 coord = make_int3(0, 0, 0);
