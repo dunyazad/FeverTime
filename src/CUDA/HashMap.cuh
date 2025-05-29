@@ -48,8 +48,10 @@ struct HashMap
 
     void Initialize();
     void Terminate();
+    void Clear(size_t capacity);
 
     void InsertPoints(PointCloudBuffers buffers);
+    void InsertPoints(float3* positions, float3* normals, uchar4* colors, size_t numberOfPoints);
 
     void CountLabels();
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <CUDA/cudaCommon.cuh>
+#include <CUDA/HashMap.cuh>
 
 using TupleType = thrust::tuple<float3, float3, uchar4>;
 
@@ -42,6 +43,9 @@ public:
 
 	inline size_t GetNumberOfElements() { return numberOfElements; }
 
+	inline HashMap& GetHashMap() { return hashmap; }
+	inline const HashMap& GetHashMap() const { return hashmap; }
+
 protected:
 	size_t numberOfElements = 0;
 
@@ -49,6 +53,8 @@ protected:
 		Eigen::AlignedBox3f(
 			Eigen::Vector3f(FLT_MAX, FLT_MAX, FLT_MAX),
 			Eigen::Vector3f(-FLT_MAX, -FLT_MAX, -FLT_MAX));
+
+	HashMap hashmap;
 };
 
 class DevicePointCloud : public IPointCloud

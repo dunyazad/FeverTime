@@ -200,11 +200,13 @@ int main(int argc, char** argv)
         }
 
         {
-            HostPointCloud pcd;
+            DevicePointCloud pcd;
 
             //auto roi = Eigen::AlignedBox3f(Eigen::Vector3f(0.0f, -60.0f, -5.0f), Eigen::Vector3f(20.0f, -30.0f, 25.0f));
             //pcd.LoadFromPLY(resource_file_name_ply, roi);
             pcd.LoadFromPLY(resource_file_name_ply, roi);
+
+            pcd.GetHashMap().SerializeToPLY("C:\\Resources\\Debug\\HashMap.ply");
 
             pcd.SaveToPLY("C:\\Resources\\Debug\\Test.ply");
             pcd.SaveToALP(resource_file_name_alp);

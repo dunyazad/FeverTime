@@ -17,12 +17,19 @@ void HashMap::Initialize()
 
 void HashMap::Terminate()
 {
-	cudaFree(info.d_hashTable);
-	cudaFree(info.d_numberOfOccupiedVoxels);
-	cudaFree(info.d_occupiedVoxelIndices);
+	if(nullptr != info.d_hashTable) cudaFree(info.d_hashTable);
+	if(nullptr != info.d_numberOfOccupiedVoxels) cudaFree(info.d_numberOfOccupiedVoxels);
+	if(nullptr != info.d_occupiedVoxelIndices) cudaFree(info.d_occupiedVoxelIndices);
 
 	info.labelCounter.Terminate();
 	info.subLabelCounter.Terminate();
+}
+
+void HashMap::Clear(size_t capacity)
+{
+	Terminate();
+	info.capacity = capacity;
+	Initialize();
 }
 
 __global__ void Kernel_InsertPoints(HashMapInfo info, PointCloudBuffers buffers)
@@ -71,6 +78,57 @@ void HashMap::InsertPoints(PointCloudBuffers buffers)
 	unsigned int gridOccupied = (buffers.numberOfPoints + blockSize - 1) / blockSize;
 
 	Kernel_InsertPoints << <gridOccupied, blockSize >> > (info, buffers);
+
+	cudaDeviceSynchronize();
+
+	cudaMemcpy(&info.h_numberOfOccupiedVoxels, info.d_numberOfOccupiedVoxels, sizeof(unsigned int), cudaMemcpyDeviceToHost);
+}
+
+__global__ void Kernel_InsertPoints_(HashMapInfo info, float3* positions, float3* normals, uchar4* colors, size_t numberOfPoints)
+{
+	int idx = blockIdx.x * blockDim.x + threadIdx.x;
+	if (idx >= numberOfPoints) return;
+
+	auto p = positions[idx];
+	auto n = normals[idx];
+	auto c = colors[idx];
+
+	int3 coord = make_int3(floorf(p.x / info.voxelSize), floorf(p.y / info.voxelSize), floorf(p.z / info.voxelSize));
+
+	size_t h = voxel_hash(coord, info.capacity);
+	for (int i = 0; i < info.maxProbe; ++i) {
+		size_t slot = (h + i) % info.capacity;
+		int prev = atomicCAS(&(info.d_hashTable[slot].label), 0, slot);
+
+		if (prev == 0) {
+			info.d_hashTable[slot].coord = coord;
+			info.d_hashTable[slot].position = Eigen::Vector3f((float)coord.x * info.voxelSize, (float)coord.y * info.voxelSize, (float)coord.z * info.voxelSize);
+			info.d_hashTable[slot].normal = Eigen::Vector3f(n.x, n.y, n.z);
+			info.d_hashTable[slot].color = Eigen::Vector4b(c.x, c.y, c.z, c.w);
+			info.d_hashTable[slot].pointCount = 1;
+
+			auto oldIndex = atomicAdd(info.d_numberOfOccupiedVoxels, 1);
+			info.d_occupiedVoxelIndices[oldIndex] = coord;
+			return;
+		}
+		else {
+			int3 existing = info.d_hashTable[slot].coord;
+			if (existing.x == coord.x && existing.y == coord.y && existing.z == coord.z) {
+				info.d_hashTable[slot].normal += Eigen::Vector3f(n.x, n.y, n.z);;
+				info.d_hashTable[slot].color = Eigen::Vector4b(c.x, c.y, c.z, c.w);
+				info.d_hashTable[slot].pointCount++;
+				return;
+			}
+		}
+	}
+}
+
+void HashMap::InsertPoints(float3* positions, float3* normals, uchar4* colors, size_t numberOfPoints)
+{
+	unsigned int blockSize = 256;
+	unsigned int gridOccupied = (numberOfPoints + blockSize - 1) / blockSize;
+
+	Kernel_InsertPoints_ << <gridOccupied, blockSize >> > (info, positions, normals, colors, numberOfPoints);
 
 	cudaDeviceSynchronize();
 
@@ -130,7 +188,7 @@ __global__ void Kernel_Serialize_HashMap(HashMapInfo info, PointCloudBuffers buf
 		{
 			buffers.positions[idx] = voxel.position;
 			buffers.normals[idx] = (voxel.normal / (float)voxel.pointCount).normalized();
-			buffers.colors[idx] = voxel.color / voxel.pointCount;
+			buffers.colors[idx] = voxel.color;
 			return;
 		}
 	}
@@ -166,9 +224,9 @@ void HashMap::SerializeToPLY(const std::string& filename)
 		ply.AddPoint(p.x(), p.y(), p.z());
 		ply.AddNormal(n.x(), n.y(), n.z());
 		ply.AddColor(
-			fminf(1.0f, fmaxf(0.0f, c.x())) / 255.0f,
-			fminf(1.0f, fmaxf(0.0f, c.y())) / 255.0f,
-			fminf(1.0f, fmaxf(0.0f, c.z())) / 255.0f
+			fminf(1.0f, fmaxf(0.0f, c.x() / 255.0f)),
+			fminf(1.0f, fmaxf(0.0f, c.y() / 255.0f)),
+			fminf(1.0f, fmaxf(0.0f, c.z() / 255.0f))
 		);
 	}
 
@@ -341,11 +399,9 @@ __device__ size_t InsertHashMapVoxel(HashMapInfo& info, int3 coord)
 		size_t slot = (h + i) % info.capacity;
 		HashMapVoxel* voxel = &info.d_hashTable[slot];
 
-		// 빈 슬롯이면 원자적으로 점유 시도
 		int prev = atomicCAS(&(voxel->label), 0, slot);
 		if (prev == 0)
 		{
-			// 점유 성공, 초기화 수행
 			voxel->coord = coord;
 			voxel->position = Eigen::Vector3f(coord.x * info.voxelSize, coord.y * info.voxelSize, coord.z * info.voxelSize);
 			voxel->pointCount = 0;
@@ -366,7 +422,6 @@ __device__ size_t InsertHashMapVoxel(HashMapInfo& info, int3 coord)
 		}
 		else
 		{
-			// 이미 존재하는 경우 같은 좌표인지 확인
 			if (voxel->coord.x == coord.x &&
 				voxel->coord.y == coord.y &&
 				voxel->coord.z == coord.z)
@@ -376,7 +431,6 @@ __device__ size_t InsertHashMapVoxel(HashMapInfo& info, int3 coord)
 		}
 	}
 
-	// 삽입 실패
 	return INVALID_VOXEL_SLOT;
 }
 
@@ -388,7 +442,6 @@ __device__ bool DeleteHashMapVoxel(HashMapInfo& info, int3 coord)
 		size_t slot = (h + i) % info.capacity;
 		HashMapVoxel* voxel = &info.d_hashTable[slot];
 
-		// 좌표 일치 시 삭제 처리
 		if (voxel->coord.x == coord.x &&
 			voxel->coord.y == coord.y &&
 			voxel->coord.z == coord.z &&
