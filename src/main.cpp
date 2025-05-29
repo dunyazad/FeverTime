@@ -69,7 +69,7 @@ int main(int argc, char** argv)
 {
     App app;
 
-    PointCloud pointCloud;
+    DevicePointCloud pointCloud;
 
     app.SetInitializeCallback([&](App& app) {
         VisualDebugging::AddLine("axes", { 0, 0, 0 }, { 100.0f * 0.5f, 0.0f, 0.0f }, Color4::Red);
@@ -234,6 +234,7 @@ int main(int argc, char** argv)
         app.GetRenderer()->ResetCamera();
         app.GetRenderWindow()->Render();
 
+        /*
         {
             auto entity = app.CreateEntity("Clustering");
             entity->CopyFrom(defaultEntity);
@@ -275,7 +276,7 @@ int main(int argc, char** argv)
 
             entity->SetVisibility(false);
         }
-
+        */
 
  /*       {
             pointCloud.GetHashMap().SerializeSDFToPLY("C:\\Resources\\Debug\\Serialized\\SDF.ply");
@@ -284,6 +285,7 @@ int main(int argc, char** argv)
         //pointCloud.ComputeVoxelNormalPCA();
         //pointCloud.ComputeVoxelNormalAverage();
 
+        /*
         {
             auto entity = app.CreateEntity("Check Overlap");
 
@@ -316,6 +318,7 @@ int main(int argc, char** argv)
             //auto voxelsEntity = app.CreateEntity("Check Overlap Voxels");
             //voxelsEntity->FromPointCloud(&tempPointCloud);
         }
+        */
 
         /*
         {
@@ -675,6 +678,7 @@ int main(int argc, char** argv)
         };
         */
 
+        /*
         {
             auto entity = app.CreateEntity("Voxels");
 
@@ -687,13 +691,12 @@ int main(int argc, char** argv)
 
             d_tempBuffers.Terminate();
         }
+        */
     });
 
     app.Initialize();
 
     app.Run();
-
-    pointCloud.Terminate();
 
     app.Terminate();
 

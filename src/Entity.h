@@ -2,7 +2,8 @@
 
 #include <Common.h>
 
-#include <CUDA/PointCloud.cuh>
+//#include <CUDA/PointCloud.cuh>
+#include <CUDA/PCD.cuh>
 
 class Entity
 {
@@ -12,9 +13,11 @@ public:
 
 	void Clear();
 
-	void FromPointCloudBuffers(PointCloudBuffers* buffers);
-	void FromPointCloud(PointCloud* pointCloud);
-	void FromPointCloud(PointCloud* pointCloud, const Eigen::AlignedBox3f& roi);
+	//void FromPointCloudBuffers(PointCloudBuffers* buffers);
+	void FromPointCloud(DevicePointCloud* pointCloud);
+	void FromPointCloud(DevicePointCloud* pointCloud, const Eigen::AlignedBox3f& roi);
+	void FromPointCloud(HostPointCloud* pointCloud);
+	void FromPointCloud(HostPointCloud* pointCloud, const Eigen::AlignedBox3f& roi);
 	//void FromPointCloud(DevicePointCloud* pointCloud);
 	//void FromPointCloud(DevicePointCloud* pointCloud, const Eigen::AlignedBox3f& roi);
 	//void FromPointCloud(HostPointCloud* pointCloud);
@@ -24,7 +27,9 @@ public:
 	void CopyTo(Entity* other);
 	void CopyTo(Entity* other, const Eigen::AlignedBox3f& roi);
 
-	void UpdateColorFromBuffer(const PointCloudBuffers& buffer);
+	//void UpdateColorFromBuffer(const PointCloudBuffers& buffer);
+	void UpdateColorFromBuffer(DevicePointCloud* pointCloud);
+	void UpdateColorFromBuffer(HostPointCloud* pointCloud);
 
 	inline vtkSmartPointer<vtkPolyData> GetPolyData() const { return polyData; }
 	inline vtkSmartPointer<vtkPolyDataMapper> GetMapper() const { return mapper; }

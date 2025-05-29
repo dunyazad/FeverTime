@@ -50,14 +50,11 @@ struct HashMap
     void Terminate();
     void Clear(size_t capacity);
 
-    void InsertPoints(PointCloudBuffers buffers);
     void InsertPoints(float3* positions, float3* normals, uchar4* colors, size_t numberOfPoints);
 
     void CountLabels();
 
     void SerializeToPLY(const string& filename);
-
-    void SerializeSDFToPLY(const string& filename);
 };
 
 __device__ size_t GetHashMapVoxelSlot(HashMapInfo& info, int3 coord);

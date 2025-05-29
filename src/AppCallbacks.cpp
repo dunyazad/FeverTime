@@ -127,21 +127,21 @@ void KeyPressCallback::Execute(vtkObject* caller, unsigned long eventId, void* c
 
                 app->SetClusteringDegree(degree);
 
-                pointCloud->Clustering(degree);
+                //pointCloud->Clustering(degree);
 
-                PointCloudBuffers d_tempBuffers;
-                d_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), false);
+                //PointCloudBuffers d_tempBuffers;
+                //d_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), false);
 
-                pointCloud->SerializeColoringByLabel(d_tempBuffers);
+                //pointCloud->SerializeColoringByLabel(d_tempBuffers);
 
-                PointCloudBuffers h_tempBuffers;
-                h_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), true);
-                d_tempBuffers.CopyTo(h_tempBuffers);
+                //PointCloudBuffers h_tempBuffers;
+                //h_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), true);
+                //d_tempBuffers.CopyTo(h_tempBuffers);
 
-                entity->UpdateColorFromBuffer(h_tempBuffers);
+                //entity->UpdateColorFromBuffer(h_tempBuffers);
 
-                d_tempBuffers.Terminate();
-                h_tempBuffers.Terminate();
+                //d_tempBuffers.Terminate();
+                //h_tempBuffers.Terminate();
             }
             else if ("Clustering Sub" == entity->GetName())
             {
@@ -152,21 +152,21 @@ void KeyPressCallback::Execute(vtkObject* caller, unsigned long eventId, void* c
 
                 app->SetClusteringDegree(degree);
 
-                pointCloud->Clustering(degree);
+                //pointCloud->Clustering(degree);
 
-                PointCloudBuffers d_tempBuffers;
-                d_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), false);
+                //PointCloudBuffers d_tempBuffers;
+                //d_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), false);
 
-                pointCloud->SerializeColoringByLabel(d_tempBuffers);
+                //pointCloud->SerializeColoringByLabel(d_tempBuffers);
 
-                PointCloudBuffers h_tempBuffers;
-                h_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), true);
-                d_tempBuffers.CopyTo(h_tempBuffers);
+                //PointCloudBuffers h_tempBuffers;
+                //h_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), true);
+                //d_tempBuffers.CopyTo(h_tempBuffers);
 
-                entity->UpdateColorFromBuffer(h_tempBuffers);
+                //entity->UpdateColorFromBuffer(h_tempBuffers);
 
-                d_tempBuffers.Terminate();
-                h_tempBuffers.Terminate();
+                //d_tempBuffers.Terminate();
+                //h_tempBuffers.Terminate();
             }
             /*
             else if ("Empty Neighbor Count" == entity->GetName())
@@ -261,21 +261,21 @@ void KeyPressCallback::Execute(vtkObject* caller, unsigned long eventId, void* c
 
                 app->SetClusteringDegree(degree);
 
-                pointCloud->Clustering(degree);
+                //pointCloud->Clustering(degree);
 
-                PointCloudBuffers d_tempBuffers;
-                d_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), false);
+                //PointCloudBuffers d_tempBuffers;
+                //d_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), false);
 
-                pointCloud->SerializeColoringByLabel(d_tempBuffers);
+                //pointCloud->SerializeColoringByLabel(d_tempBuffers);
 
-                PointCloudBuffers h_tempBuffers;
-                h_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), true);
-                d_tempBuffers.CopyTo(h_tempBuffers);
+                //PointCloudBuffers h_tempBuffers;
+                //h_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), true);
+                //d_tempBuffers.CopyTo(h_tempBuffers);
 
-                entity->UpdateColorFromBuffer(h_tempBuffers);
+                //entity->UpdateColorFromBuffer(h_tempBuffers);
 
-                d_tempBuffers.Terminate();
-                h_tempBuffers.Terminate();
+                //d_tempBuffers.Terminate();
+                //h_tempBuffers.Terminate();
             }
             else if ("Clustering Sub" == entity->GetName())
             {
@@ -286,21 +286,21 @@ void KeyPressCallback::Execute(vtkObject* caller, unsigned long eventId, void* c
 
                 app->SetClusteringDegree(degree);
 
-                pointCloud->Clustering(degree);
+                //pointCloud->Clustering(degree);
 
-                PointCloudBuffers d_tempBuffers;
-                d_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), false);
+                //PointCloudBuffers d_tempBuffers;
+                //d_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), false);
 
-                pointCloud->SerializeColoringByLabel(d_tempBuffers);
+                //pointCloud->SerializeColoringByLabel(d_tempBuffers);
 
-                PointCloudBuffers h_tempBuffers;
-                h_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), true);
-                d_tempBuffers.CopyTo(h_tempBuffers);
+                //PointCloudBuffers h_tempBuffers;
+                //h_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), true);
+                //d_tempBuffers.CopyTo(h_tempBuffers);
 
-                entity->UpdateColorFromBuffer(h_tempBuffers);
+                //entity->UpdateColorFromBuffer(h_tempBuffers);
 
-                d_tempBuffers.Terminate();
-                h_tempBuffers.Terminate();
+                //d_tempBuffers.Terminate();
+                //h_tempBuffers.Terminate();
             }
             /*
             else if ("Empty Neighbor Count" == entity->GetName())

@@ -3,7 +3,7 @@
 #include <Common.h>
 
 class App;
-class PointCloud;
+class DevicePointCloud;
 
 class EventCallback : public vtkCommand
 {
@@ -32,5 +32,5 @@ public:
 
     void Execute(vtkObject* caller, unsigned long eventId, void* callData) override;
 
-    PointCloud* pointCloud;
+    DevicePointCloud* pointCloud;
 };

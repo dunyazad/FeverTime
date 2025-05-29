@@ -80,8 +80,8 @@ public:
 
 	virtual bool SaveToALP(const string& filename);
 
-	inline thrust::device_vector<float3>& GetPoints() { return points; }
-	inline const thrust::device_vector<float3>& GetPoints() const { return points; }
+	inline thrust::device_vector<float3>& GetPositions() { return positions; }
+	inline const thrust::device_vector<float3>& GetPositions() const { return positions; }
 
 	inline thrust::device_vector<float3>& GetNormals() { return normals; }
 	inline const thrust::device_vector<float3>& GetNormals() const { return normals; }
@@ -92,17 +92,17 @@ public:
 	inline DeviceZipIter begin()
 	{
 		return thrust::make_zip_iterator(thrust::make_tuple(
-			points.begin(), normals.begin(), colors.begin()));
+			positions.begin(), normals.begin(), colors.begin()));
 	}
 
 	inline DeviceZipIter end()
 	{
 		return thrust::make_zip_iterator(thrust::make_tuple(
-			points.end(), normals.end(), colors.end()));
+			positions.end(), normals.end(), colors.end()));
 	}
 
 protected:
-	thrust::device_vector<float3> points;
+	thrust::device_vector<float3> positions;
 	thrust::device_vector<float3> normals;
 	thrust::device_vector<uchar4> colors;
 
@@ -133,8 +133,8 @@ public:
 
 	virtual bool SaveToALP(const string& filename);
 
-	inline thrust::host_vector<float3>& GetPoints() { return points; }
-	inline const thrust::host_vector<float3>& GetPoints() const { return points; }
+	inline thrust::host_vector<float3>& GetPositions() { return positions; }
+	inline const thrust::host_vector<float3>& GetPositions() const { return positions; }
 
 	inline thrust::host_vector<float3>& GetNormals() { return normals; }
 	inline const thrust::host_vector<float3>& GetNormals() const { return normals; }
@@ -145,17 +145,17 @@ public:
 	inline HostZipIter begin()
 	{
 		return thrust::make_zip_iterator(thrust::make_tuple(
-			points.begin(), normals.begin(), colors.begin()));
+			positions.begin(), normals.begin(), colors.begin()));
 	}
 
 	inline HostZipIter end()
 	{
 		return thrust::make_zip_iterator(thrust::make_tuple(
-			points.end(), normals.end(), colors.end()));
+			positions.end(), normals.end(), colors.end()));
 	}
 
 protected:
-	thrust::host_vector<float3> points;
+	thrust::host_vector<float3> positions;
 	thrust::host_vector<float3> normals;
 	thrust::host_vector<uchar4> colors;
 

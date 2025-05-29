@@ -32,57 +32,57 @@ void HashMap::Clear(size_t capacity)
 	Initialize();
 }
 
-__global__ void Kernel_InsertPoints(HashMapInfo info, PointCloudBuffers buffers)
-{
-	int idx = blockIdx.x * blockDim.x + threadIdx.x;
-	if (idx >= buffers.numberOfPoints) return;
-
-	auto p = buffers.positions[idx];
-	auto n = buffers.normals[idx].normalized();
-	auto c = buffers.colors[idx];
-
-	int3 coord = make_int3(floorf(p.x() / info.voxelSize), floorf(p.y() / info.voxelSize), floorf(p.z() / info.voxelSize));
-
-	size_t h = voxel_hash(coord, info.capacity);
-	for (int i = 0; i < info.maxProbe; ++i) {
-		size_t slot = (h + i) % info.capacity;
-		int prev = atomicCAS(&(info.d_hashTable[slot].label), 0, slot);
-
-		if (prev == 0) {
-			// »õ·Î¿î ½½·Ô¿¡ »ðÀÔ
-			info.d_hashTable[slot].coord = coord;
-			info.d_hashTable[slot].position = Eigen::Vector3f((float)coord.x * info.voxelSize, (float)coord.y * info.voxelSize, (float)coord.z * info.voxelSize);
-			info.d_hashTable[slot].normal = n;
-			info.d_hashTable[slot].color = c;
-			info.d_hashTable[slot].pointCount = 1;
-
-			auto oldIndex = atomicAdd(info.d_numberOfOccupiedVoxels, 1);
-			info.d_occupiedVoxelIndices[oldIndex] = coord;
-			return;
-		}
-		else {
-			int3 existing = info.d_hashTable[slot].coord;
-			if (existing.x == coord.x && existing.y == coord.y && existing.z == coord.z) {
-				info.d_hashTable[slot].normal += n;
-				info.d_hashTable[slot].color = c;
-				info.d_hashTable[slot].pointCount++;
-				return;
-			}
-		}
-	}
-}
-
-void HashMap::InsertPoints(PointCloudBuffers buffers)
-{
-	unsigned int blockSize = 256;
-	unsigned int gridOccupied = (buffers.numberOfPoints + blockSize - 1) / blockSize;
-
-	Kernel_InsertPoints << <gridOccupied, blockSize >> > (info, buffers);
-
-	cudaDeviceSynchronize();
-
-	cudaMemcpy(&info.h_numberOfOccupiedVoxels, info.d_numberOfOccupiedVoxels, sizeof(unsigned int), cudaMemcpyDeviceToHost);
-}
+//__global__ void Kernel_InsertPoints(HashMapInfo info, PointCloudBuffers buffers)
+//{
+//	int idx = blockIdx.x * blockDim.x + threadIdx.x;
+//	if (idx >= buffers.numberOfPoints) return;
+//
+//	auto p = buffers.positions[idx];
+//	auto n = buffers.normals[idx].normalized();
+//	auto c = buffers.colors[idx];
+//
+//	int3 coord = make_int3(floorf(p.x() / info.voxelSize), floorf(p.y() / info.voxelSize), floorf(p.z() / info.voxelSize));
+//
+//	size_t h = voxel_hash(coord, info.capacity);
+//	for (int i = 0; i < info.maxProbe; ++i) {
+//		size_t slot = (h + i) % info.capacity;
+//		int prev = atomicCAS(&(info.d_hashTable[slot].label), 0, slot);
+//
+//		if (prev == 0) {
+//			// »õ·Î¿î ½½·Ô¿¡ »ðÀÔ
+//			info.d_hashTable[slot].coord = coord;
+//			info.d_hashTable[slot].position = Eigen::Vector3f((float)coord.x * info.voxelSize, (float)coord.y * info.voxelSize, (float)coord.z * info.voxelSize);
+//			info.d_hashTable[slot].normal = n;
+//			info.d_hashTable[slot].color = c;
+//			info.d_hashTable[slot].pointCount = 1;
+//
+//			auto oldIndex = atomicAdd(info.d_numberOfOccupiedVoxels, 1);
+//			info.d_occupiedVoxelIndices[oldIndex] = coord;
+//			return;
+//		}
+//		else {
+//			int3 existing = info.d_hashTable[slot].coord;
+//			if (existing.x == coord.x && existing.y == coord.y && existing.z == coord.z) {
+//				info.d_hashTable[slot].normal += n;
+//				info.d_hashTable[slot].color = c;
+//				info.d_hashTable[slot].pointCount++;
+//				return;
+//			}
+//		}
+//	}
+//}
+//
+//void HashMap::InsertPoints(PointCloudBuffers buffers)
+//{
+//	unsigned int blockSize = 256;
+//	unsigned int gridOccupied = (buffers.numberOfPoints + blockSize - 1) / blockSize;
+//
+//	Kernel_InsertPoints << <gridOccupied, blockSize >> > (info, buffers);
+//
+//	cudaDeviceSynchronize();
+//
+//	cudaMemcpy(&info.h_numberOfOccupiedVoxels, info.d_numberOfOccupiedVoxels, sizeof(unsigned int), cudaMemcpyDeviceToHost);
+//}
 
 __global__ void Kernel_InsertPoints_(HashMapInfo info, float3* positions, float3* normals, uchar4* colors, size_t numberOfPoints)
 {
@@ -167,30 +167,63 @@ void HashMap::CountLabels()
 	cudaDeviceSynchronize();
 }
 
-__global__ void Kernel_Serialize_HashMap(HashMapInfo info, PointCloudBuffers buffers)
+//__global__ void Kernel_Serialize_HashMap(HashMapInfo info, PointCloudBuffers buffers)
+//{
+//	int idx = blockIdx.x * blockDim.x + threadIdx.x;
+//	if (idx >= *info.d_numberOfOccupiedVoxels) return;
+//
+//	int3 coord = info.d_occupiedVoxelIndices[idx];
+//	size_t h = voxel_hash(coord, info.capacity);
+//
+//	for (unsigned int i = 0; i < info.maxProbe; ++i)
+//	{
+//		size_t slot = (h + i) % info.capacity;
+//		auto& voxel = info.d_hashTable[slot];
+//
+//		if (0 == voxel.label) return;
+//
+//		if (voxel.coord.x == coord.x &&
+//			voxel.coord.y == coord.y &&
+//			voxel.coord.z == coord.z)
+//		{
+//			buffers.positions[idx] = voxel.position;
+//			buffers.normals[idx] = (voxel.normal / (float)voxel.pointCount).normalized();
+//			buffers.colors[idx] = voxel.color;
+//			return;
+//		}
+//	}
+//}
+
+__global__ void Kernel_Serialize_HashMap(HashMapInfo info, float3* positions, float3* normals, uchar4* colors)
 {
 	int idx = blockIdx.x * blockDim.x + threadIdx.x;
 	if (idx >= *info.d_numberOfOccupiedVoxels) return;
 
 	int3 coord = info.d_occupiedVoxelIndices[idx];
-	size_t h = voxel_hash(coord, info.capacity);
+	auto slot = GetHashMapVoxelSlot(info, coord);
+	if (INVALID_VOXEL_SLOT == slot) return;
+	auto voxel = GetHashMapVoxel(info, slot);
+	if (INVALID_VOXEL == voxel) return;
 
-	for (unsigned int i = 0; i < info.maxProbe; ++i)
+	if (0 == voxel->label) return;
+
+	if (voxel->coord.x == coord.x &&
+		voxel->coord.y == coord.y &&
+		voxel->coord.z == coord.z)
 	{
-		size_t slot = (h + i) % info.capacity;
-		auto& voxel = info.d_hashTable[slot];
+		positions[idx].x = voxel->position.x();
+		positions[idx].y = voxel->position.y();
+		positions[idx].z = voxel->position.z();
 
-		if (0 == voxel.label) return;
-
-		if (voxel.coord.x == coord.x &&
-			voxel.coord.y == coord.y &&
-			voxel.coord.z == coord.z)
-		{
-			buffers.positions[idx] = voxel.position;
-			buffers.normals[idx] = (voxel.normal / (float)voxel.pointCount).normalized();
-			buffers.colors[idx] = voxel.color;
-			return;
-		}
+		auto normal = (voxel->normal / (float)voxel->pointCount).normalized();
+		normals[idx].x = normal.x();
+		normals[idx].y = normal.y();
+		normals[idx].z = normal.z();
+		
+		colors[idx].x = voxel->color.x();
+		colors[idx].y = voxel->color.y();
+		colors[idx].z = voxel->color.z();
+		colors[idx].w = voxel->color.w();
 	}
 }
 
@@ -200,169 +233,45 @@ void HashMap::SerializeToPLY(const std::string& filename)
 
 	unsigned int numberOfOccupiedVoxels = info.h_numberOfOccupiedVoxels;
 
-	PointCloudBuffers d_buffers;
-	d_buffers.Initialize(numberOfOccupiedVoxels, false);
+	float3* positions = nullptr;
+	cudaMalloc(&positions, sizeof(float3) * numberOfOccupiedVoxels);
+	float3* normals = nullptr;
+	cudaMalloc(&normals, sizeof(float3) * numberOfOccupiedVoxels);
+	uchar4* colors = nullptr;
+	cudaMalloc(&colors, sizeof(uchar4) * numberOfOccupiedVoxels);
 
 	unsigned int blockSize = 256;
 	unsigned int gridOccupied = (numberOfOccupiedVoxels + blockSize - 1) / blockSize;
 
-	Kernel_Serialize_HashMap << <gridOccupied, blockSize >> > (info, d_buffers);
+	Kernel_Serialize_HashMap << <gridOccupied, blockSize >> > (info, positions, normals, colors);
 
 	cudaDeviceSynchronize();
 
-	PointCloudBuffers h_buffers;
-	h_buffers.Initialize(numberOfOccupiedVoxels, true);
+	float3* h_positions = new float3[numberOfOccupiedVoxels];
+	float3* h_normals = new float3[numberOfOccupiedVoxels];
+	uchar4* h_colors = new uchar4[numberOfOccupiedVoxels];
 
-	d_buffers.CopyTo(h_buffers);
+	cudaMemcpy(h_positions, positions, sizeof(float3) * numberOfOccupiedVoxels, cudaMemcpyDeviceToHost);
+	cudaMemcpy(h_normals, normals, sizeof(float3) * numberOfOccupiedVoxels, cudaMemcpyDeviceToHost);
+	cudaMemcpy(h_colors, colors, sizeof(uchar4) * numberOfOccupiedVoxels, cudaMemcpyDeviceToHost);
 
 	for (size_t i = 0; i < numberOfOccupiedVoxels; i++)
 	{
-		auto& p = h_buffers.positions[i];
-		auto& n = h_buffers.normals[i];
-		auto& c = h_buffers.colors[i];
+		auto& p = h_positions[i];
+		auto& n = h_normals[i];
+		auto& c = h_colors[i];
 
-		ply.AddPoint(p.x(), p.y(), p.z());
-		ply.AddNormal(n.x(), n.y(), n.z());
+		ply.AddPoint(p.x, p.y, p.z);
+		ply.AddNormal(n.x, n.y, n.z);
 		ply.AddColor(
-			fminf(1.0f, fmaxf(0.0f, c.x() / 255.0f)),
-			fminf(1.0f, fmaxf(0.0f, c.y() / 255.0f)),
-			fminf(1.0f, fmaxf(0.0f, c.z() / 255.0f))
+			fminf(1.0f, fmaxf(0.0f, c.x / 255.0f)),
+			fminf(1.0f, fmaxf(0.0f, c.y / 255.0f)),
+			fminf(1.0f, fmaxf(0.0f, c.z / 255.0f)),
+			fminf(1.0f, fmaxf(0.0f, c.w / 255.0f))
 		);
 	}
 
 	ply.Serialize(filename);
-
-	d_buffers.Terminate();
-	h_buffers.Terminate();
-}
-
-__global__ void Kernel_Compute_SDF(HashMapInfo info, PointCloudBuffers buffers)
-{
-	int idx = blockIdx.x * blockDim.x + threadIdx.x;
-	if (idx >= *info.d_numberOfOccupiedVoxels) return;
-
-	int3 coord = info.d_occupiedVoxelIndices[idx];
-	auto centerVoxelSlot = GetHashMapVoxelSlot(info, coord);
-	if (INVALID_VOXEL_SLOT == centerVoxelSlot) return;
-	auto centerVoxel = GetHashMapVoxel(info, centerVoxelSlot);
-	if (INVALID_VOXEL == centerVoxel) return;
-
-	float minDist = 1e10f;
-	float sign = 1.0f;
-
-#pragma unroll
-	for (int ni = 0; ni < 124; ++ni)
-	{
-		int3 neighborCoord = make_int3(
-			coord.x + neighbor_offsets_124[ni].x,
-			coord.y + neighbor_offsets_124[ni].y,
-			coord.z + neighbor_offsets_124[ni].z);
-
-		if (0 == neighbor_offsets_124[ni].x && 0 == neighbor_offsets_124[ni].y && 0 == neighbor_offsets_124[ni].z) continue;
-
-		size_t neighborSlot = GetHashMapVoxelSlot(info, neighborCoord);
-		if (INVALID_VOXEL_SLOT == neighborSlot)
-		{
-			neighborSlot = InsertHashMapVoxel(info, neighborCoord);
-			if (INVALID_VOXEL_SLOT != neighborSlot)
-			{
-				auto index = atomicAdd(info.d_numberOfOccupiedVoxels, 1);
-				info.d_occupiedVoxelIndices[index] = neighborCoord;
-			}
-		}
-
-		HashMapVoxel* neighborVoxel = GetHashMapVoxel(info, neighborSlot);
-		if (INVALID_VOXEL == neighborVoxel) continue;
-
-		Eigen::Vector3f p = neighborVoxel->position;
-		Eigen::Vector3f n = neighborVoxel->normal.normalized();
-		Eigen::Vector3f dir = centerVoxel->position - p;
-		float dist = dir.norm();
-
-		if (dist < minDist) {
-			minDist = dist;
-			sign = dir.dot(n) > 0 ? +1.0f : -1.0f;
-		}
-	}
-
-	centerVoxel->sdf = sign * minDist;
-}
-
-__global__ void Kernel_Serialize_SDF(HashMapInfo info, PointCloudBuffers buffers)
-{
-	int idx = blockIdx.x * blockDim.x + threadIdx.x;
-	if (idx >= *info.d_numberOfOccupiedVoxels) return;
-
-	int3 coord = info.d_occupiedVoxelIndices[idx];
-	auto centerVoxelSlot = GetHashMapVoxelSlot(info, coord);
-	if (INVALID_VOXEL_SLOT == centerVoxelSlot) return;
-	auto centerVoxel = GetHashMapVoxel(info, centerVoxelSlot);
-	if (INVALID_VOXEL == centerVoxel) return;
-
-	//printf("sdf : %f\n", centerVoxel->sdf);
-
-	if (-1 > centerVoxel->sdf || 1 < centerVoxel->sdf)
-	{
-		buffers.positions[idx] = Eigen::Vector3f(FLT_MAX, FLT_MAX, FLT_MAX);
-		return;
-	}
-
-	buffers.positions[idx] = centerVoxel->position;
-	buffers.normals[idx] = (centerVoxel->normal / (float)centerVoxel->pointCount).normalized();
-
-	if (centerVoxel->sdf <= 0.0f)
-	{
-		// Blue (0, 0, 1) to Green (0, 1, 0)
-		float t = (centerVoxel->sdf + 1.0f); // t in [0, 1]
-		buffers.colors[idx] = Eigen::Vector4b(0, t * 255.0f, (1.0f - t) * 255.0f, 255);
-	}
-	else {
-		// Green (0, 1, 0) to Red (1, 0, 0)
-		float t = centerVoxel->sdf; // t in [0, 1]
-		buffers.colors[idx] = Eigen::Vector4b(t * 255.0f, (1.0f - t) * 255.0f, 255, 255);
-	}
-}
-
-void HashMap::SerializeSDFToPLY(const std::string& filename)
-{
-	PLYFormat ply;
-
-	unsigned int numberOfOccupiedVoxels = info.h_numberOfOccupiedVoxels;
-
-	PointCloudBuffers d_buffers;
-	d_buffers.Initialize(numberOfOccupiedVoxels, false);
-
-	unsigned int blockSize = 256;
-	unsigned int gridOccupied = (numberOfOccupiedVoxels + blockSize - 1) / blockSize;
-
-	Kernel_Compute_SDF << <gridOccupied, blockSize >> > (info, d_buffers);
-
-	Kernel_Serialize_SDF << <gridOccupied, blockSize >> > (info, d_buffers);
-
-	cudaDeviceSynchronize();
-
-	PointCloudBuffers h_buffers;
-	h_buffers.Initialize(numberOfOccupiedVoxels, true);
-
-	d_buffers.CopyTo(h_buffers);
-
-	for (size_t i = 0; i < numberOfOccupiedVoxels; i++)
-	{
-		auto& p = h_buffers.positions[i];
-		auto& n = h_buffers.normals[i];
-		auto& c = h_buffers.colors[i];
-
-		if (FLT_MAX == p.x() && FLT_MAX == p.y() && FLT_MAX == p.z()) continue;
-
-		ply.AddPoint(p.x(), p.y(), p.z());
-		ply.AddNormal(n.x(), n.y(), n.z());
-		ply.AddColor(c.x() / 255.0f, c.y() / 255.0f, c.z() / 255.0f);
-	}
-
-	ply.Serialize(filename);
-
-	d_buffers.Terminate();
-	h_buffers.Terminate();
 }
 
 __device__ size_t GetHashMapVoxelSlot(HashMapInfo& info, int3 coord)
