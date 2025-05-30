@@ -21,6 +21,31 @@ void DevicePointCloud::Clear(size_t numberOfPoints)
 	hashmap.Clear(numberOfElements * 20);
 }
 
+void DevicePointCloud::CopyFrom(DevicePointCloud* pointCloud)
+{
+	if (numberOfElements < pointCloud->numberOfElements)
+	{
+		numberOfElements = pointCloud->numberOfElements;
+		positions.resize(numberOfElements);
+		normals.resize(numberOfElements);
+		colors.resize(numberOfElements);
+	}
+
+	thrust::copy(pointCloud->positions.begin(), pointCloud->positions.begin() + numberOfElements, positions.begin());
+	thrust::copy(pointCloud->normals.begin(), pointCloud->normals.begin() + numberOfElements, normals.begin());
+	thrust::copy(pointCloud->colors.begin(), pointCloud->colors.begin() + numberOfElements, colors.begin());
+
+	aabb = pointCloud->aabb;
+
+	hashmap.Clear(numberOfElements * 20);
+
+	auto d_positions = thrust::raw_pointer_cast(positions.data());
+	auto d_normals = thrust::raw_pointer_cast(normals.data());
+	auto d_colors = thrust::raw_pointer_cast(colors.data());
+
+	hashmap.InsertPoints(d_positions, d_normals, d_colors, numberOfElements);
+}
+
 void DevicePointCloud::CopyFrom(HostPointCloud* pointCloud)
 {
 	if (numberOfElements < pointCloud->numberOfElements)
@@ -35,9 +60,44 @@ void DevicePointCloud::CopyFrom(HostPointCloud* pointCloud)
 	thrust::copy(pointCloud->normals.begin(), pointCloud->normals.begin() + numberOfElements, normals.begin());
 	thrust::copy(pointCloud->colors.begin(), pointCloud->colors.begin() + numberOfElements, colors.begin());
 
-	pointCloud->aabb = aabb;
+	aabb = pointCloud->aabb;
 
 	hashmap.Clear(numberOfElements * 20);
+
+	auto d_positions = thrust::raw_pointer_cast(positions.data());
+	auto d_normals = thrust::raw_pointer_cast(normals.data());
+	auto d_colors = thrust::raw_pointer_cast(colors.data());
+
+	hashmap.InsertPoints(d_positions, d_normals, d_colors, numberOfElements);
+}
+
+void DevicePointCloud::CopyTo(DevicePointCloud* pointCloud)
+{
+	if (pointCloud->numberOfElements < numberOfElements)
+	{
+		pointCloud->numberOfElements = numberOfElements;
+		pointCloud->positions.resize(numberOfElements);
+		pointCloud->normals.resize(numberOfElements);
+		pointCloud->colors.resize(numberOfElements);
+	}
+
+	thrust::copy(positions.begin(), positions.begin() + numberOfElements, pointCloud->positions.begin());
+	thrust::copy(normals.begin(), normals.begin() + numberOfElements, pointCloud->normals.begin());
+	thrust::copy(colors.begin(), colors.begin() + numberOfElements, pointCloud->colors.begin());
+
+	pointCloud->aabb = aabb;
+
+	pointCloud->hashmap.Clear(numberOfElements * 20);
+
+	thrust::device_vector<float3> dv_positions(pointCloud->positions);
+	thrust::device_vector<float3> dv_normals(pointCloud->normals);
+	thrust::device_vector<uchar4> dv_colors(pointCloud->colors);
+
+	auto d_positions = thrust::raw_pointer_cast(dv_positions.data());
+	auto d_normals = thrust::raw_pointer_cast(dv_normals.data());
+	auto d_colors = thrust::raw_pointer_cast(dv_colors.data());
+
+	pointCloud->hashmap.InsertPoints(d_positions, d_normals, d_colors, numberOfElements);
 }
 
 void DevicePointCloud::CopyTo(HostPointCloud* pointCloud)
@@ -52,11 +112,21 @@ void DevicePointCloud::CopyTo(HostPointCloud* pointCloud)
 
 	thrust::copy(positions.begin(), positions.begin() + numberOfElements, pointCloud->positions.begin());
 	thrust::copy(normals.begin(), normals.begin() + numberOfElements, pointCloud->normals.begin());
-	thrust::copy(colors.begin(),  colors.begin() + numberOfElements, pointCloud->colors.begin());
+	thrust::copy(colors.begin(), colors.begin() + numberOfElements, pointCloud->colors.begin());
 
-	aabb = pointCloud->aabb;
+	pointCloud->aabb = aabb;
 
-	hashmap.Clear(numberOfElements * 20);
+	pointCloud->hashmap.Clear(numberOfElements * 20);
+
+	thrust::device_vector<float3> dv_positions(pointCloud->positions);
+	thrust::device_vector<float3> dv_normals(pointCloud->normals);
+	thrust::device_vector<uchar4> dv_colors(pointCloud->colors);
+
+	auto d_positions = thrust::raw_pointer_cast(dv_positions.data());
+	auto d_normals = thrust::raw_pointer_cast(dv_normals.data());
+	auto d_colors = thrust::raw_pointer_cast(dv_colors.data());
+
+	pointCloud->hashmap.InsertPoints(d_positions, d_normals, d_colors, numberOfElements);
 }
 
 void DevicePointCloud::Compact()
@@ -89,6 +159,14 @@ void DevicePointCloud::Compact()
 	{
 		aabb.extend(Eigen::Vector3f(p.x, p.y, p.z));
 	}
+
+	hashmap.Clear(numberOfElements * 20);
+
+	auto d_positions = thrust::raw_pointer_cast(positions.data());
+	auto d_normals = thrust::raw_pointer_cast(normals.data());
+	auto d_colors = thrust::raw_pointer_cast(colors.data());
+
+	hashmap.InsertPoints(d_positions, d_normals, d_colors, numberOfElements);
 }
 
 bool DevicePointCloud::LoadFromPLY(const string& filename)
@@ -260,7 +338,7 @@ bool DevicePointCloud::SaveToPLY(const string& filename)
 
 	PLYFormat ply;
 	
-	for (size_t i = 0; i < h_positions.size(); i++)
+	for (size_t i = 0; i < numberOfElements; i++)
 	{
 		auto& p = h_positions[i];
 		auto& n = h_normals[i];
@@ -387,7 +465,7 @@ bool DevicePointCloud::SaveToALP(const string& filename)
 
 	ALPFormat<PointPNC> alp;
 	
-	for (size_t i = 0; i < h_positions.size(); i++)
+	for (size_t i = 0; i < numberOfElements; i++)
 	{
 		PointPNC point;
 		point.position = h_positions[i];
@@ -431,30 +509,110 @@ void HostPointCloud::Clear(size_t numberOfPoints)
 
 void HostPointCloud::CopyFrom(DevicePointCloud* pointCloud)
 {
-	positions.resize(pointCloud->positions.size());
-	thrust::copy(pointCloud->positions.begin(), pointCloud->positions.end(), positions.begin());
+	if (numberOfElements < pointCloud->numberOfElements)
+	{
+		numberOfElements = pointCloud->numberOfElements;
+		positions.resize(numberOfElements);
+		normals.resize(numberOfElements);
+		colors.resize(numberOfElements);
+	}
 
-	normals.resize(pointCloud->normals.size());
-	thrust::copy(pointCloud->normals.begin(), pointCloud->normals.end(), normals.begin());
+	thrust::copy(pointCloud->positions.begin(), pointCloud->positions.begin() + numberOfElements, positions.begin());
+	thrust::copy(pointCloud->normals.begin(), pointCloud->normals.begin() + numberOfElements, normals.begin());
+	thrust::copy(pointCloud->colors.begin(), pointCloud->colors.begin() + numberOfElements, colors.begin());
 
-	colors.resize(pointCloud->colors.size());
-	thrust::copy(pointCloud->colors.begin(), pointCloud->colors.end(), colors.begin());
+	aabb = pointCloud->aabb;
 
-	pointCloud->aabb = aabb;
+	hashmap.Clear(numberOfElements * 20);
+
+	auto d_positions = thrust::raw_pointer_cast(pointCloud->positions.data());
+	auto d_normals = thrust::raw_pointer_cast(pointCloud->normals.data());
+	auto d_colors = thrust::raw_pointer_cast(pointCloud->colors.data());
+
+	hashmap.InsertPoints(d_positions, d_normals, d_colors, numberOfElements);
+}
+
+void HostPointCloud::CopyFrom(HostPointCloud* pointCloud)
+{
+	if (numberOfElements < pointCloud->numberOfElements)
+	{
+		numberOfElements = pointCloud->numberOfElements;
+		positions.resize(numberOfElements);
+		normals.resize(numberOfElements);
+		colors.resize(numberOfElements);
+	}
+
+	thrust::copy(pointCloud->positions.begin(), pointCloud->positions.begin() + numberOfElements, positions.begin());
+	thrust::copy(pointCloud->normals.begin(), pointCloud->normals.begin() + numberOfElements, normals.begin());
+	thrust::copy(pointCloud->colors.begin(), pointCloud->colors.begin() + numberOfElements, colors.begin());
+
+	aabb = pointCloud->aabb;
+
+	hashmap.Clear(numberOfElements * 20);
+
+	auto d_positions = thrust::raw_pointer_cast(positions.data());
+	auto d_normals = thrust::raw_pointer_cast(normals.data());
+	auto d_colors = thrust::raw_pointer_cast(colors.data());
+
+	hashmap.InsertPoints(d_positions, d_normals, d_colors, numberOfElements);
 }
 
 void HostPointCloud::CopyTo(DevicePointCloud* pointCloud)
 {
-	pointCloud->positions.resize(positions.size());
-	thrust::copy(positions.begin(), positions.end(), pointCloud->positions.begin());
+	if (pointCloud->numberOfElements < numberOfElements)
+	{
+		pointCloud->numberOfElements = numberOfElements;
+		pointCloud->positions.resize(numberOfElements);
+		pointCloud->normals.resize(numberOfElements);
+		pointCloud->colors.resize(numberOfElements);
+	}
 
-	pointCloud->normals.resize(normals.size());
-	thrust::copy(normals.begin(), normals.end(), pointCloud->normals.begin());
+	thrust::copy(positions.begin(), positions.begin() + numberOfElements, pointCloud->positions.begin());
+	thrust::copy(normals.begin(), normals.begin() + numberOfElements, pointCloud->normals.begin());
+	thrust::copy(colors.begin(), colors.begin() + numberOfElements, pointCloud->colors.begin());
 
-	pointCloud->colors.resize(colors.size());
-	thrust::copy(colors.begin(), colors.end(), pointCloud->colors.begin());
+	pointCloud->aabb = aabb;
 
-	aabb = pointCloud->aabb;
+	pointCloud->hashmap.Clear(numberOfElements * 20);
+
+	thrust::device_vector<float3> dv_positions(pointCloud->positions);
+	thrust::device_vector<float3> dv_normals(pointCloud->normals);
+	thrust::device_vector<uchar4> dv_colors(pointCloud->colors);
+
+	auto d_positions = thrust::raw_pointer_cast(dv_positions.data());
+	auto d_normals = thrust::raw_pointer_cast(dv_normals.data());
+	auto d_colors = thrust::raw_pointer_cast(dv_colors.data());
+
+	pointCloud->hashmap.InsertPoints(d_positions, d_normals, d_colors, numberOfElements);
+}
+
+void HostPointCloud::CopyTo(HostPointCloud* pointCloud)
+{
+	if (pointCloud->numberOfElements < numberOfElements)
+	{
+		pointCloud->numberOfElements = numberOfElements;
+		pointCloud->positions.resize(numberOfElements);
+		pointCloud->normals.resize(numberOfElements);
+		pointCloud->colors.resize(numberOfElements);
+	}
+
+	thrust::copy(positions.begin(), positions.begin() + numberOfElements, pointCloud->positions.begin());
+	thrust::copy(normals.begin(), normals.begin() + numberOfElements, pointCloud->normals.begin());
+	thrust::copy(colors.begin(), colors.begin() + numberOfElements, pointCloud->colors.begin());
+
+	pointCloud->aabb = aabb;
+
+	pointCloud->hashmap.Clear(numberOfElements * 20);
+
+	thrust::device_vector<float3> dv_positions(pointCloud->positions);
+	thrust::device_vector<float3> dv_normals(pointCloud->normals);
+	thrust::device_vector<uchar4> dv_colors(pointCloud->colors);
+
+	auto d_positions = thrust::raw_pointer_cast(dv_positions.data());
+	auto d_normals = thrust::raw_pointer_cast(dv_normals.data());
+	auto d_colors = thrust::raw_pointer_cast(dv_colors.data());
+
+	pointCloud->hashmap.InsertPoints(d_positions, d_normals, d_colors, numberOfElements);
 }
 
 void HostPointCloud::Compact()
@@ -484,6 +642,18 @@ void HostPointCloud::Compact()
 	{
 		aabb.extend(Eigen::Vector3f(p.x, p.y, p.z));
 	}
+
+	hashmap.Clear(numberOfElements * 20);
+
+	thrust::device_vector<float3> d_positions(positions);
+	thrust::device_vector<float3> d_normals(normals);
+	thrust::device_vector<uchar4> d_colors(colors);
+
+	hashmap.InsertPoints(
+		thrust::raw_pointer_cast(d_positions.data()),
+		thrust::raw_pointer_cast(d_normals.data()),
+		thrust::raw_pointer_cast(d_colors.data()),
+		numberOfElements);
 }
 
 bool HostPointCloud::LoadFromPLY(const string& filename)
@@ -540,6 +710,8 @@ bool HostPointCloud::LoadFromPLY(const string& filename)
 
 		aabb.extend(Eigen::Vector3f(x, y, z));
 	}
+
+	numberOfElements = ply.GetPoints().size() / 3;
 
 	thrust::device_vector<float3> d_positions(positions);
 	thrust::device_vector<float3> d_normals(normals);
@@ -639,7 +811,7 @@ bool HostPointCloud::SaveToPLY(const string& filename)
 {
 	PLYFormat ply;
 
-	for (size_t i = 0; i < positions.size(); i++)
+	for (size_t i = 0; i < numberOfElements; i++)
 	{
 		auto& p = positions[i];
 		auto& n = normals[i];
@@ -666,6 +838,8 @@ bool HostPointCloud::LoadFromALP(const string& filename)
 	positions.resize(alp.GetPoints().size());
 	normals.resize(alp.GetPoints().size());
 	colors.resize(alp.GetPoints().size());
+
+	numberOfElements = alp.GetPoints().size();
 
 	for (size_t i = 0; i < alp.GetPoints().size(); i++)
 	{
@@ -746,7 +920,7 @@ bool HostPointCloud::SaveToALP(const string& filename)
 {
 	ALPFormat<PointPNC> alp;
 
-	for (size_t i = 0; i < positions.size(); i++)
+	for (size_t i = 0; i < numberOfElements; i++)
 	{
 		PointPNC point;
 		point.position = positions[i];

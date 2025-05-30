@@ -62,8 +62,10 @@ class DevicePointCloud : public IPointCloud
 public:
 	void Clear(size_t numberOfPoints = 0);
 
+	void CopyFrom(DevicePointCloud* pointCloud);
 	void CopyFrom(HostPointCloud* pointCloud);
 
+	void CopyTo(DevicePointCloud* pointCloud);
 	void CopyTo(HostPointCloud* pointCloud);
 
 	virtual void Compact();
@@ -116,8 +118,10 @@ public:
 	void Clear(size_t numberOfPoints = 0);
 
 	void CopyFrom(DevicePointCloud* pointCloud);
+	void CopyFrom(HostPointCloud* pointCloud);
 
 	void CopyTo(DevicePointCloud* pointCloud);
+	void CopyTo(HostPointCloud* pointCloud);
 
 	virtual void Compact();
 

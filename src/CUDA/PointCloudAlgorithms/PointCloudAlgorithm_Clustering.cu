@@ -249,34 +249,29 @@ __global__ void Kernel_SerializeColoringByLabel(HashMapInfo info, float3* positi
 
 	if (0 == voxel->label) return;
 
-	if (voxel->coord.x == coord.x &&
-		voxel->coord.y == coord.y &&
-		voxel->coord.z == coord.z)
-	{
-		positions[idx].x = voxel->position.x();
-		positions[idx].y = voxel->position.y();
-		positions[idx].z = voxel->position.z();
+	//positions[idx].x = p.x;
+	//positions[idx].y = p.y;
+	//positions[idx].z = p.z;
 
-		normals[idx].x = voxel->normal.x();
-		normals[idx].y = voxel->normal.y();
-		normals[idx].z = voxel->normal.z();
+	normals[idx].x = voxel->normal.x() / (float)voxel->pointCount;
+	normals[idx].y = voxel->normal.y() / (float)voxel->pointCount;
+	normals[idx].z = voxel->normal.z() / (float)voxel->pointCount;
 
-		float r = hashToFloat(voxel->label * 3 + 0);
-		float g = hashToFloat(voxel->label * 3 + 1);
-		float b = hashToFloat(voxel->label * 3 + 2);
+	float r = hashToFloat(voxel->label * 3 + 0);
+	float g = hashToFloat(voxel->label * 3 + 1);
+	float b = hashToFloat(voxel->label * 3 + 2);
 
-		colors[idx] = make_uchar4(r * 255.0f, g * 255.0f, b * 255.0f, 255);
+	colors[idx] = make_uchar4(r * 255.0f, g * 255.0f, b * 255.0f, 255);
 
-		//auto labelCount = info.labelCounter.GetCount(voxel.label);
-		//if (200000 > labelCount)
-		//{
-		//	buffers.colors[idx] = Eigen::Vector4b(r * 255.0f, g * 255.0f, b * 255.0f, 0);
-		//}
-		//else
-		//{
-		//	buffers.colors[idx] = Eigen::Vector4b(r * 255.0f, g * 255.0f, b * 255.0f, 255);
-		//}
-	}
+	//auto labelCount = info.labelCounter.GetCount(voxel.label);
+	//if (200000 > labelCount)
+	//{
+	//	buffers.colors[idx] = Eigen::Vector4b(r * 255.0f, g * 255.0f, b * 255.0f, 0);
+	//}
+	//else
+	//{
+	//	buffers.colors[idx] = Eigen::Vector4b(r * 255.0f, g * 255.0f, b * 255.0f, 255);
+	//}
 }
 
 //void PointCloud::SerializeColoringByLabel(PointCloudBuffers& d_tempBuffers)
@@ -378,6 +373,8 @@ void PointCloudAlgorithm_Clustering::RunAlgorithm(DevicePointCloud* pointCloud)
 		cudaDeviceSynchronize();
 	}
 
+	pointCloud->GetHashMap().CountLabels();
+
 	{
 		unsigned int numberOfPoints = pointCloud->GetNumberOfElements();
 
@@ -394,8 +391,7 @@ void PointCloudAlgorithm_Clustering::RunAlgorithm(DevicePointCloud* pointCloud)
 		cudaDeviceSynchronize();
 	}
 
-	/*hashmap.CountLabels();
-
+	/*
 	labels.resize(h_buffers.numberOfPoints);
 	{
 		uint3* d_labels = nullptr;
@@ -411,7 +407,8 @@ void PointCloudAlgorithm_Clustering::RunAlgorithm(DevicePointCloud* pointCloud)
 		cudaMemcpy(labels.data(), d_labels, sizeof(unsigned int) * h_buffers.numberOfPoints, cudaMemcpyDeviceToHost);
 
 		cudaFree(d_labels);
-	}*/
+	}
+	*/
 
 	nvtxRangePop();
 }
@@ -448,6 +445,8 @@ void PointCloudAlgorithm_Clustering::RunAlgorithm(HostPointCloud* pointCloud)
 
 		cudaDeviceSynchronize();
 	}
+
+	pointCloud->GetHashMap().CountLabels();
 
 	{
 		unsigned int numberOfPoints = pointCloud->GetNumberOfElements();

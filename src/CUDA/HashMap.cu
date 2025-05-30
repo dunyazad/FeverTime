@@ -21,6 +21,8 @@ void HashMap::Terminate()
 	if(nullptr != info.d_numberOfOccupiedVoxels) cudaFree(info.d_numberOfOccupiedVoxels);
 	if(nullptr != info.d_occupiedVoxelIndices) cudaFree(info.d_occupiedVoxelIndices);
 
+	info.h_numberOfOccupiedVoxels = 0;
+
 	info.labelCounter.Terminate();
 	info.subLabelCounter.Terminate();
 }
@@ -30,6 +32,9 @@ void HashMap::Clear(size_t capacity)
 	Terminate();
 	info.capacity = capacity;
 	Initialize();
+
+	info.labelCounter.Clear();
+	info.subLabelCounter.Clear();
 }
 
 //__global__ void Kernel_InsertPoints(HashMapInfo info, PointCloudBuffers buffers)
