@@ -2,6 +2,7 @@
 
 #include "App.h"
 #include <CUDA/main.cuh>
+#include <CUDA/PointCloudAlgorithms/PointCloudAlgorithm_Clustering.cuh>
 
 #include <Debugging/VisualDebugging.h>
 
@@ -199,19 +200,6 @@ int main(int argc, char** argv)
             }
         }
 
-        {
-            DevicePointCloud pcd;
-
-            //auto roi = Eigen::AlignedBox3f(Eigen::Vector3f(0.0f, -60.0f, -5.0f), Eigen::Vector3f(20.0f, -30.0f, 25.0f));
-            //pcd.LoadFromPLY(resource_file_name_ply, roi);
-            pcd.LoadFromPLY(resource_file_name_ply, roi);
-
-            pcd.GetHashMap().SerializeToPLY("C:\\Resources\\Debug\\HashMap.ply");
-
-            pcd.SaveToPLY("C:\\Resources\\Debug\\Test.ply");
-            pcd.SaveToALP(resource_file_name_alp);
-        }
-
         //map<uint3, unsigned int> colorHistogram;
         //for (size_t i = 0; i < pointCloud.GetNumberOfPoints(); i++)
         //{
@@ -233,6 +221,32 @@ int main(int argc, char** argv)
 
         app.GetRenderer()->ResetCamera();
         app.GetRenderWindow()->Render();
+
+        {
+            DevicePointCloud pcd;
+
+            pcd.LoadFromALP(resource_file_name_alp);
+
+            PointCloudAlgorithm_Clustering clustering;
+
+            clustering.RunAlgorithm(&pcd);
+
+            auto entity = app.CreateEntity("Clustering");
+            entity->FromPointCloud(&pcd);
+
+            entity->SetVisibility(false);
+
+
+
+            //auto roi = Eigen::AlignedBox3f(Eigen::Vector3f(0.0f, -60.0f, -5.0f), Eigen::Vector3f(20.0f, -30.0f, 25.0f));
+            //pcd.LoadFromPLY(resource_file_name_ply, roi);
+            //pcd.LoadFromPLY(resource_file_name_ply, roi);
+
+            //pcd.GetHashMap().SerializeToPLY("C:\\Resources\\Debug\\HashMap.ply");
+
+            //pcd.SaveToPLY("C:\\Resources\\Debug\\Test.ply");
+            //pcd.SaveToALP(resource_file_name_alp);
+        }
 
         /*
         {
