@@ -32,7 +32,9 @@ __global__ void Kernel_CheckOverlap(
 	float3* positions,
 	float3* normals,
 	uchar4* colors,
-	size_t numberOfPoints)
+	size_t numberOfPoints,
+	int step,
+	bool applyColor)
 {
 	unsigned int threadid = blockDim.x * blockIdx.x + threadIdx.x;
 	if (threadid >= numberOfPoints) return;
@@ -58,7 +60,6 @@ __global__ void Kernel_CheckOverlap(
 	Eigen::Vector3f normalSum = centerNormal;
 	Eigen::Vector3f colorSum = Eigen::Vector3f((float)centerColor.x() / 255.0f, (float)centerColor.y() / 255.0f, (float)centerColor.z() / 255.0f);
 
-	int step = 3;
 	for (int i = 2; i < step; i++)
 	{
 		auto position = centerPosition + centerNormal * info.voxelSize * (float)i;
@@ -84,17 +85,23 @@ __global__ void Kernel_CheckOverlap(
 
 	if (1 < count)
 	{
-		centerVoxel->color = Eigen::Vector4b(255, 0, 0, 255);
+		if (applyColor)
+		{
+			centerVoxel->color = Eigen::Vector4b(255, 0, 0, 255);
+		}
 
 		positions[threadid].x = FLT_MAX;
 		positions[threadid].y = FLT_MAX;
 		positions[threadid].z = FLT_MAX;
 	}
 
-	colors[threadid].x = centerVoxel->color.x();
-	colors[threadid].y = centerVoxel->color.y();
-	colors[threadid].z = centerVoxel->color.z();
-	colors[threadid].w = centerVoxel->color.w();
+	if (applyColor)
+	{
+		colors[threadid].x = centerVoxel->color.x();
+		colors[threadid].y = centerVoxel->color.y();
+		colors[threadid].z = centerVoxel->color.z();
+		colors[threadid].w = centerVoxel->color.w();
+	}
 }
 
 void PointCloudAlgorithm_CheckOverlap::RunAlgorithm(DevicePointCloud* pointCloud)
@@ -123,7 +130,9 @@ void PointCloudAlgorithm_CheckOverlap::RunAlgorithm(DevicePointCloud* pointCloud
 			d_positions,
 			d_normals,
 			d_colors,
-			numberOfPoints);
+			numberOfPoints,
+			step,
+			applyColor);
 	}
 
 	cudaDeviceSynchronize();
@@ -159,7 +168,9 @@ void PointCloudAlgorithm_CheckOverlap::RunAlgorithm(HostPointCloud* pointCloud)
 			d_positions,
 			d_normals,
 			d_colors,
-			numberOfPoints);
+			numberOfPoints,
+			step,
+			applyColor);
 	}
 
 	cudaDeviceSynchronize();

@@ -137,7 +137,13 @@ PointCloudAlgorithm_ClusteringFilter::~PointCloudAlgorithm_ClusteringFilter()
 //	cudaDeviceSynchronize();
 //}
 
-__global__ void Kernel_SerializeFilteringColoringByLabel(HashMapInfo info, float3* positions, float3* normals, uchar4* colors, size_t numberOfPoints)
+__global__ void Kernel_SerializeFilteringColoringByLabel(
+	HashMapInfo info,
+	float3* positions,
+	float3* normals,
+	uchar4* colors,
+	size_t numberOfPoints,
+	bool applyColor)
 {
 	int idx = blockIdx.x * blockDim.x + threadIdx.x;
 	if (idx >= numberOfPoints) return;
@@ -157,24 +163,21 @@ __global__ void Kernel_SerializeFilteringColoringByLabel(HashMapInfo info, float
 		voxel->coord.y == coord.y &&
 		voxel->coord.z == coord.z)
 	{
-		//positions[idx].x = p.x;
-		//positions[idx].y = p.y;
-		//positions[idx].z = p.z;
+		if (applyColor)
+		{
+			normals[idx].x = voxel->normal.x() / (float)voxel->pointCount;
+			normals[idx].y = voxel->normal.y() / (float)voxel->pointCount;
+			normals[idx].z = voxel->normal.z() / (float)voxel->pointCount;
 
-		normals[idx].x = voxel->normal.x() / (float)voxel->pointCount;
-		normals[idx].y = voxel->normal.y() / (float)voxel->pointCount;
-		normals[idx].z = voxel->normal.z() / (float)voxel->pointCount;
+			float r = hashToFloat(voxel->label * 3 + 0);
+			float g = hashToFloat(voxel->label * 3 + 1);
+			float b = hashToFloat(voxel->label * 3 + 2);
 
-		float r = hashToFloat(voxel->label * 3 + 0);
-		float g = hashToFloat(voxel->label * 3 + 1);
-		float b = hashToFloat(voxel->label * 3 + 2);
-
-		colors[idx] = make_uchar4(r * 255.0f, g * 255.0f, b * 255.0f, 255);
+			colors[idx] = make_uchar4(r * 255.0f, g * 255.0f, b * 255.0f, 255);
+		}
 
 		auto labelCount = info.labelCounter.GetCount(voxel->label);
 		
-		//printf("labelCount : %d\n", labelCount);
-
 		if (20000 > labelCount)
 		{
 			positions[idx].x = FLT_MAX;
@@ -238,7 +241,7 @@ void PointCloudAlgorithm_ClusteringFilter::RunAlgorithm(DevicePointCloud* pointC
 		auto colors = thrust::raw_pointer_cast(pointCloud->GetColors().data());
 
 		Kernel_SerializeFilteringColoringByLabel << <gridOccupied, blockSize >> > (
-			pointCloud->GetHashMap().info, positions, normals, colors, numberOfPoints);
+			pointCloud->GetHashMap().info, positions, normals, colors, numberOfPoints, applyColor);
 
 		cudaDeviceSynchronize();
 	}

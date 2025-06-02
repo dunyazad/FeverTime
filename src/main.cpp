@@ -5,6 +5,7 @@
 #include <CUDA/PointCloudAlgorithms/PointCloudAlgorithm_Clustering.cuh>
 #include <CUDA/PointCloudAlgorithms/PointCloudAlgorithm_ClusteringFilter.cuh>
 #include <CUDA/PointCloudAlgorithms/PointCloudAlgorithm_CheckOverlap.cuh>
+#include <CUDA/PointCloudAlgorithms/PointCloudAlgorithm_Smoothing.cuh>
 
 #include <Debugging/VisualDebugging.h>
 
@@ -272,21 +273,88 @@ int main(int argc, char** argv)
             pcd.LoadFromALP(resource_file_name_alp);
 
             PointCloudAlgorithm_ClusteringFilter clusteringFilter;
-
+            clusteringFilter.SetApplyColor(false);
             clusteringFilter.RunAlgorithm(&pcd);
 
             pcd.Compact();
 
-            PointCloudAlgorithm_CheckOverlap checkOverlap;
+            //pcd.SaveToPLY("D:\\Resources\\Debug\\HD\\BasePoints_Step1.ply");
 
+            PointCloudAlgorithm_CheckOverlap checkOverlap;
+            checkOverlap.SetApplyColor(false);
             checkOverlap.RunAlgorithm(&pcd);
 
             pcd.Compact();
 
-            PointCloudAlgorithm_ClusteringFilter clustering;
-            clustering.RunAlgorithm(&pcd);
+            pcd.SaveToPLY("D:\\Resources\\Debug\\HD\\BasePoints_A.ply");
+
+            PointCloudAlgorithm_Smoothing smoothing;
+            for (size_t i = 0; i < 10; i++)
+            {
+                smoothing.RunAlgorithm(&pcd);
+            }
+
+            pcd.SaveToPLY("D:\\Resources\\Debug\\HD\\BasePoints_B.ply");
+
+            /*
+            //pcd.SaveToPLY("D:\\Resources\\Debug\\HD\\BasePoints_Step2.ply");
+
+            checkOverlap.SetStep(5);
+            checkOverlap.RunAlgorithm(&pcd);
 
             pcd.Compact();
+
+            //pcd.SaveToPLY("D:\\Resources\\Debug\\HD\\BasePoints_Step3.ply");
+
+            clusteringFilter.SetApplyColor(false);
+            clusteringFilter.RunAlgorithm(&pcd);
+
+            pcd.Compact();
+
+            //pcd.SaveToPLY("D:\\Resources\\Debug\\HD\\BasePoints_Step4.ply");
+
+            checkOverlap.SetStep(10);
+            checkOverlap.RunAlgorithm(&pcd);
+
+            pcd.Compact();
+
+            //pcd.SaveToPLY("D:\\Resources\\Debug\\HD\\BasePoints_Step5.ply");
+
+            clusteringFilter.SetApplyColor(false);
+            clusteringFilter.RunAlgorithm(&pcd);
+
+            pcd.Compact();
+
+            //pcd.SaveToPLY("D:\\Resources\\Debug\\HD\\BasePoints_Step6.ply");
+
+            checkOverlap.SetStep(50);
+            checkOverlap.RunAlgorithm(&pcd);
+
+            pcd.Compact();
+
+            //pcd.SaveToPLY("D:\\Resources\\Debug\\HD\\BasePoints_Step7.ply");
+
+            clusteringFilter.SetApplyColor(false);
+            clusteringFilter.RunAlgorithm(&pcd);
+
+            pcd.Compact();
+
+            //pcd.SaveToPLY("D:\\Resources\\Debug\\HD\\BasePoints_Step8.ply");
+
+            checkOverlap.SetStep(100);
+            checkOverlap.RunAlgorithm(&pcd);
+
+            pcd.Compact();
+
+            //pcd.SaveToPLY("D:\\Resources\\Debug\\HD\\BasePoints_Step9.ply");
+
+            clusteringFilter.SetApplyColor(false);
+            clusteringFilter.RunAlgorithm(&pcd);
+
+            pcd.Compact();
+
+            //pcd.SaveToPLY("D:\\Resources\\Debug\\HD\\BasePoints_Step10.ply");
+            */
 
             auto entity = app.CreateEntity("Check Overlap");
             entity->FromPointCloud(&pcd);
