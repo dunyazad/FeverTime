@@ -6,3 +6,5 @@
 #include <CUDA/PointCloudAlgorithms/PointCloudAlgorithm_CheckOverlap.cuh>
 
 #include <CUDA/PCD.cuh>
+
+#include <CUDA/HalfEdge.cuh>
