@@ -224,49 +224,54 @@ int main(int argc, char** argv)
         app.GetRenderer()->ResetCamera();
         app.GetRenderWindow()->Render();
 
-        //{
-        //    DevicePointCloud pcd;
+        /*
+        {
+            DevicePointCloud pcd;
 
-        //    pcd.LoadFromALP(resource_file_name_alp);
+            pcd.LoadFromALP(resource_file_name_alp);
 
-        //    PointCloudAlgorithm_Clustering clustering;
+            PointCloudAlgorithm_Clustering clustering;
 
-        //    clustering.RunAlgorithm(&pcd);
+            clustering.RunAlgorithm(&pcd);
 
-        //    auto entity = app.CreateEntity("Clustering");
-        //    entity->FromPointCloud(&pcd);
+            auto entity = app.CreateEntity("Clustering");
+            entity->FromPointCloud(&pcd);
 
-        //    entity->SetVisibility(false);
+            entity->SetVisibility(false);
 
 
 
-        //    //auto roi = Eigen::AlignedBox3f(Eigen::Vector3f(0.0f, -60.0f, -5.0f), Eigen::Vector3f(20.0f, -30.0f, 25.0f));
-        //    //pcd.LoadFromPLY(resource_file_name_ply, roi);
-        //    //pcd.LoadFromPLY(resource_file_name_ply, roi);
+            //auto roi = Eigen::AlignedBox3f(Eigen::Vector3f(0.0f, -60.0f, -5.0f), Eigen::Vector3f(20.0f, -30.0f, 25.0f));
+            //pcd.LoadFromPLY(resource_file_name_ply, roi);
+            //pcd.LoadFromPLY(resource_file_name_ply, roi);
 
-        //    //pcd.GetHashMap().SerializeToPLY("C:\\Resources\\Debug\\HashMap.ply");
+            //pcd.GetHashMap().SerializeToPLY("C:\\Resources\\Debug\\HashMap.ply");
 
-        //    //pcd.SaveToPLY("C:\\Resources\\Debug\\Test.ply");
-        //    //pcd.SaveToALP(resource_file_name_alp);
-        //}
+            //pcd.SaveToPLY("C:\\Resources\\Debug\\Test.ply");
+            //pcd.SaveToALP(resource_file_name_alp);
+        }
+        */
 
-        //{
-        //    DevicePointCloud pcd;
+        /*
+        {
+            DevicePointCloud pcd;
 
-        //    pcd.LoadFromALP(resource_file_name_alp);
+            pcd.LoadFromALP(resource_file_name_alp);
 
-        //    PointCloudAlgorithm_ClusteringFilter clusteringFilter;
+            PointCloudAlgorithm_ClusteringFilter clusteringFilter;
 
-        //    clusteringFilter.RunAlgorithm(&pcd);
+            clusteringFilter.RunAlgorithm(&pcd);
 
-        //    pcd.Compact();
+            pcd.Compact();
 
-        //    auto entity = app.CreateEntity("Clustering Filter");
-        //    entity->FromPointCloud(&pcd);
+            auto entity = app.CreateEntity("Clustering Filter");
+            entity->FromPointCloud(&pcd);
 
-        //    entity->SetVisibility(false);
-        //}
+            entity->SetVisibility(false);
+        }
+        */
 
+        /*
         {
             DevicePointCloud pcd;
 
@@ -296,7 +301,6 @@ int main(int argc, char** argv)
 
             pcd.SaveToPLY("D:\\Resources\\Debug\\HD\\BasePoints_B.ply");
 
-            /*
             //pcd.SaveToPLY("D:\\Resources\\Debug\\HD\\BasePoints_Step2.ply");
 
             checkOverlap.SetStep(5);
@@ -354,13 +358,13 @@ int main(int argc, char** argv)
             pcd.Compact();
 
             //pcd.SaveToPLY("D:\\Resources\\Debug\\HD\\BasePoints_Step10.ply");
-            */
 
             auto entity = app.CreateEntity("Check Overlap");
             entity->FromPointCloud(&pcd);
 
             entity->SetVisibility(false);
         }
+        */
 
         /*
         {
@@ -406,9 +410,11 @@ int main(int argc, char** argv)
         }
         */
 
- /*       {
+        /*
+        {
             pointCloud.GetHashMap().SerializeSDFToPLY("C:\\Resources\\Debug\\Serialized\\SDF.ply");
-        }*/
+        }
+        */
 
         //pointCloud.ComputeVoxelNormalPCA();
         //pointCloud.ComputeVoxelNormalAverage();

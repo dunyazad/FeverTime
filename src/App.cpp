@@ -102,6 +102,22 @@ void App::Run()
     renderer->ResetCamera();
 	renderWindow->Render();
 
+#ifdef _WINDOWS
+	// Get the HWND for the render window
+	HWND hwnd = reinterpret_cast<HWND>(renderWindow->GetGenericWindowId());
+	if (hwnd == nullptr) {
+		std::cerr << "Error: renderWindow->GetGenericWindowId() returned nullptr!" << std::endl;
+	}
+	else {
+		std::cerr << "Maximizing render window on monitor 1..." << std::endl;
+		MaximizeWindowOnMonitor(hwnd, 0);
+	}
+
+	// Maximize the console window
+	std::cerr << "Maximizing console window on monitor 0..." << std::endl;
+	MaximizeConsoleWindowOnMonitor(1);
+#endif
+
     timerCallback = vtkSmartPointer<TimerCallback>::New();
     timerCallback->SetApp(this);
 
