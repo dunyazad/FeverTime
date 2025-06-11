@@ -5,6 +5,7 @@
 #include <CUDA/PointCloudAlgorithms/PointCloudAlgorithm_Clustering.cuh>
 #include <CUDA/PointCloudAlgorithms/PointCloudAlgorithm_ClusteringFilter.cuh>
 #include <CUDA/PointCloudAlgorithms/PointCloudAlgorithm_CheckOverlap.cuh>
+#include <CUDA/PointCloudAlgorithms/PointCloudAlgorithm_FindSurfaceNeighbor.cuh>
 #include <CUDA/PointCloudAlgorithms/PointCloudAlgorithm_Smoothing.cuh>
 
 #include <Debugging/VisualDebugging.h>
@@ -216,17 +217,17 @@ int main(int argc, char** argv)
         app.GetRenderer()->ResetCamera();
         app.GetRenderWindow()->Render();
 
-        /*
+        
         {
             DevicePointCloud pcd;
 
             pcd.LoadFromALP(resource_file_name_alp);
 
-            PointCloudAlgorithm_Clustering clustering;
+            PointCloudAlgorithm_FindSurfaceNeighbor algorithm;
 
-            clustering.RunAlgorithm(&pcd);
+            algorithm.RunAlgorithm(&pcd);
 
-            auto entity = app.CreateEntity("Clustering");
+            auto entity = app.CreateEntity("Find Surface Neighbor");
             entity->FromPointCloud(&pcd);
 
             entity->SetVisibility(false);
@@ -242,7 +243,7 @@ int main(int argc, char** argv)
             //pcd.SaveToPLY("C:\\Resources\\Debug\\Test.ply");
             //pcd.SaveToALP(resource_file_name_alp);
         }
-        */
+        
 
         /*
         {

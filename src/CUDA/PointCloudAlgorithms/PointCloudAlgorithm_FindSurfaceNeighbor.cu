@@ -340,20 +340,47 @@ PointCloudAlgorithm_FindSurfaceNeighbor::~PointCloudAlgorithm_FindSurfaceNeighbo
 ////	cudaDeviceSynchronize();
 ////}
 
+__global__ void Kernel_CheckNeighbor(HashMapInfo info, float3* positions, float3* normals, uchar4* colors, size_t numberOfPoints)
+{
+	int idx = blockIdx.x * blockDim.x + threadIdx.x;
+	if (idx >= numberOfPoints) return;
+	
+	auto& p = positions[idx];
+	int3 coord = make_int3(floorf(p.x / info.voxelSize), floorf(p.y / info.voxelSize), floorf(p.z / info.voxelSize));
+	
+	auto slot = GetHashMapVoxelSlot(info, coord);
+	if (INVALID_VOXEL_SLOT == slot) return;
+	
+	auto voxel = GetHashMapVoxel(info, slot);
+	if (INVALID_VOXEL == voxel) return;
+	
+	colors[idx].x = 255;
+	colors[idx].y = 0;
+	colors[idx].z = 0;
+	colors[idx].w = 255;
+}
+
 void PointCloudAlgorithm_FindSurfaceNeighbor::RunAlgorithm(DevicePointCloud* pointCloud)
 {
 	nvtxRangePushA("Clustering");
 
-	//unsigned int numberOfOccupiedVoxels = pointCloud->GetHashMap().info.h_numberOfOccupiedVoxels;
+	unsigned int numberOfOccupiedVoxels = pointCloud->GetHashMap().info.h_numberOfOccupiedVoxels;
 
-	//{
-	//	unsigned int blockSize = 256;
-	//	unsigned int gridOccupied = (numberOfOccupiedVoxels + blockSize - 1) / blockSize;
+	{
+		unsigned int numberOfPoints = pointCloud->GetNumberOfElements();
 
-	//	Kernel_ClearLabels << <gridOccupied, blockSize >> > (pointCloud->GetHashMap().info);
+		unsigned int blockSize = 256;
+		unsigned int gridOccupied = (numberOfPoints + blockSize - 1) / blockSize;
 
-	//	cudaDeviceSynchronize();
-	//}
+		auto positions = thrust::raw_pointer_cast(pointCloud->GetPositions().data());
+		auto normals = thrust::raw_pointer_cast(pointCloud->GetNormals().data());
+		auto colors = thrust::raw_pointer_cast(pointCloud->GetColors().data());
+
+		Kernel_CheckNeighbor << <gridOccupied, blockSize >> > (
+			pointCloud->GetHashMap().info, positions, normals, colors, numberOfPoints);
+
+		cudaDeviceSynchronize();
+	}
 
 	//{
 	//	unsigned int blockSize = 256;
