@@ -158,14 +158,64 @@ inline void ParseOneLine(
 	}
 }
 
+struct Coordinate
+{
+	int xIndex = 0;
+	int yIndex = 0;
+	int zIndex = 0;
+	int wIndex = 0;
+
+	Coordinate(float x, float y, float z, float w = 0.0f, float precision = 1e6f)
+	{
+		xIndex = static_cast<int>(std::floor(x * precision));
+		yIndex = static_cast<int>(std::floor(y * precision));
+		zIndex = static_cast<int>(std::floor(z * precision));
+		wIndex = static_cast<int>(std::floor(w * precision));
+	}
+
+	bool operator==(const Coordinate& other) const {
+		return xIndex == other.xIndex && yIndex == other.yIndex && zIndex == other.zIndex && wIndex == other.wIndex;
+	}
+};
+
+namespace std {
+	template <>
+	struct hash<Coordinate> {
+		size_t operator()(const Coordinate& v) const {
+			size_t seed = 0;
+			hash_combine(seed, v.xIndex);
+			hash_combine(seed, v.yIndex);
+			hash_combine(seed, v.zIndex);
+			hash_combine(seed, v.wIndex);
+			return seed;
+		}
+
+	private:
+		static void hash_combine(size_t& seed, int value) {
+			// Boost-style hash_combine
+			seed ^= std::hash<int>()(value) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+		}
+	};
+}
+
 class HSerializable
 {
 public:
 	virtual bool Serialize(const string& filename) = 0;
 	virtual bool Deserialize(const string& filename) = 0;
 
-	virtual inline void AddPoint(float x, float y, float z)
+	virtual inline bool AddPoint(float x, float y, float z)
 	{
+		Coordinate coordinate(x, y, z);
+		if (0 != pointSet.count(coordinate))
+		{
+			return false;
+		}
+		else
+		{
+			pointSet.insert(coordinate);
+		}
+
 		points.push_back(x);
 		points.push_back(y);
 		points.push_back(z);
@@ -180,10 +230,22 @@ public:
 			aabbMaxY = y > aabbMaxY ? y : aabbMaxY;
 			aabbMaxZ = z > aabbMaxZ ? z : aabbMaxZ;
 		}
+
+		return true;
 	}
 
-	virtual inline void AddPoint(float x, float y, float z, float w)
+	virtual inline bool AddPoint(float x, float y, float z, float w)
 	{
+		Coordinate coordinate(x, y, z);
+		if (0 != pointSet.count(coordinate))
+		{
+			return false;
+		}
+		else
+		{
+			pointSet.insert(coordinate);
+		}
+
 		points.push_back(x);
 		points.push_back(y);
 		points.push_back(z);
@@ -199,10 +261,22 @@ public:
 			aabbMaxY = y > aabbMaxY ? y : aabbMaxY;
 			aabbMaxZ = z > aabbMaxZ ? z : aabbMaxZ;
 		}
+
+		return true;
 	}
 
-	virtual inline void AddPointFloat3(const float* point)
+	virtual inline bool AddPointFloat3(const float* point)
 	{
+		Coordinate coordinate(point[0], point[1], point[2]);
+		if (0 != pointSet.count(coordinate))
+		{
+			return false;
+		}
+		else
+		{
+			pointSet.insert(coordinate);
+		}
+
 		points.push_back(point[0]);
 		points.push_back(point[1]);
 		points.push_back(point[2]);
@@ -217,10 +291,22 @@ public:
 			aabbMaxY = point[1] > aabbMaxY ? point[1] : aabbMaxY;
 			aabbMaxZ = point[2] > aabbMaxZ ? point[2] : aabbMaxZ;
 		}
+
+		return true;
 	}
 
-	virtual inline void AddPointFloat4(const float* point)
+	virtual inline bool AddPointFloat4(const float* point)
 	{
+		Coordinate coordinate(point[0], point[1], point[2], point[3]);
+		if (0 != pointSet.count(coordinate))
+		{
+			return false;
+		}
+		else
+		{
+			pointSet.insert(coordinate);
+		}
+
 		points.push_back(point[0]);
 		points.push_back(point[1]);
 		points.push_back(point[2]);
@@ -236,6 +322,8 @@ public:
 			aabbMaxY = point[1] > aabbMaxY ? point[1] : aabbMaxY;
 			aabbMaxZ = point[2] > aabbMaxZ ? point[2] : aabbMaxZ;
 		}
+
+		return true;
 	}
 
 	virtual inline void SwapAxisYZ() = 0;
@@ -255,6 +343,7 @@ public:
 
 protected:
 	vector<float> points;
+	std::unordered_set<Coordinate> pointSet;
 
 	float aabbMinX = FLT_MAX;
 	float aabbMinY = FLT_MAX;
@@ -1420,6 +1509,16 @@ public:
 		{
 			Point p;
 			ifs.read((char*)&p, pointSize);
+
+			if (0 != pointSet.count({ p.position.x, p.position.y, p.position.z }))
+			{
+				continue;
+			}
+			else
+			{
+				pointSet.insert({ p.position.x, p.position.y, p.position.z });
+			}
+
 			points.push_back(p);
 
 			aabbMinX = p.position.x < aabbMinX ? p.position.x : aabbMinX;
@@ -1438,8 +1537,18 @@ public:
 		return true;
 	}
 
-	void AddPoint(const Point& point)
+	bool AddPoint(const Point& point)
 	{
+		Coordinate coordinate(point.position.x, point.position.y, point.position.z);
+		if (0 != pointSet.count(coordinate))
+		{
+			return false;
+		}
+		else
+		{
+			pointSet.insert(coordinate);
+		}
+
 		lock_guard<mutex> lock(points_mutex);
 		points.push_back(point);
 
@@ -1450,24 +1559,26 @@ public:
 		aabbMaxX = point.position.x > aabbMaxX ? point.position.x : aabbMaxX;
 		aabbMaxY = point.position.y > aabbMaxY ? point.position.y : aabbMaxY;
 		aabbMaxZ = point.position.z > aabbMaxZ ? point.position.z : aabbMaxZ;
+
+		return true;
 	}
 
-	void AddPoints(const vector<Point>& inputPoints)
-	{
-		lock_guard<mutex> lock(points_mutex);
-		points.insert(points.end(), inputPoints.begin(), inputPoints.end());
+	//void AddPoints(const vector<Point>& inputPoints)
+	//{
+	//	lock_guard<mutex> lock(points_mutex);
+	//	points.insert(points.end(), inputPoints.begin(), inputPoints.end());
 
-		for (auto& point : points)
-		{
-			aabbMinX = point.position.x < aabbMinX ? point.position.x : aabbMinX;
-			aabbMinY = point.position.y < aabbMinY ? point.position.y : aabbMinY;
-			aabbMinZ = point.position.z < aabbMinZ ? point.position.z : aabbMinZ;
+	//	for (auto& point : points)
+	//	{
+	//		aabbMinX = point.position.x < aabbMinX ? point.position.x : aabbMinX;
+	//		aabbMinY = point.position.y < aabbMinY ? point.position.y : aabbMinY;
+	//		aabbMinZ = point.position.z < aabbMinZ ? point.position.z : aabbMinZ;
 
-			aabbMaxX = point.position.x > aabbMaxX ? point.position.x : aabbMaxX;
-			aabbMaxY = point.position.y > aabbMaxY ? point.position.y : aabbMaxY;
-			aabbMaxZ = point.position.z > aabbMaxZ ? point.position.z : aabbMaxZ;
-		}
-	}
+	//		aabbMaxX = point.position.x > aabbMaxX ? point.position.x : aabbMaxX;
+	//		aabbMaxY = point.position.y > aabbMaxY ? point.position.y : aabbMaxY;
+	//		aabbMaxZ = point.position.z > aabbMaxZ ? point.position.z : aabbMaxZ;
+	//	}
+	//}
 
 	const vector<Point>& GetPoints() const
 	{
@@ -1488,6 +1599,7 @@ public:
 protected:
 	mutable mutex points_mutex;
 	vector<Point> points;
+	std::unordered_set<Coordinate> pointSet;
 
 	float aabbMinX = FLT_MAX;
 	float aabbMinY = FLT_MAX;

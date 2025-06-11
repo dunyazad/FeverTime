@@ -10,8 +10,22 @@ class EventCallback : public vtkCommand
 public:
     inline void SetApp(App* app) { this->app = app; }
 
+    inline void SetDevicePointCloud(DevicePointCloud* pointCloud) { this->pointCloud = pointCloud; }
+
 protected:
     App* app = nullptr;
+    DevicePointCloud* pointCloud = nullptr;
+};
+
+class SingleClickPickerCallback : public EventCallback
+{
+public:
+    static SingleClickPickerCallback* New();
+
+    void Execute(vtkObject* caller, unsigned long eventId, void* callData) override;
+
+private:
+    chrono::steady_clock::time_point lastClickTime = chrono::steady_clock::now();
 };
 
 class DoubleClickPickerCallback : public EventCallback
@@ -31,6 +45,4 @@ public:
     static KeyPressCallback* New();
 
     void Execute(vtkObject* caller, unsigned long eventId, void* callData) override;
-
-    DevicePointCloud* pointCloud;
 };

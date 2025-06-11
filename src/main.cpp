@@ -83,7 +83,14 @@ int main(int argc, char** argv)
             auto picker = vtkSmartPointer<vtkPointPicker>::New();
             app.GetInteractor()->SetPicker(picker);
 
+            auto singleClickPickerCallback = vtkSmartPointer<SingleClickPickerCallback>::New();
+            singleClickPickerCallback->SetDevicePointCloud(&pointCloud);
+            singleClickPickerCallback->SetApp(&app);
+
+            app.GetInteractor()->AddObserver(vtkCommand::LeftButtonPressEvent, singleClickPickerCallback);
+
             auto doubleClickPickerCallback = vtkSmartPointer<DoubleClickPickerCallback>::New();
+            doubleClickPickerCallback->SetDevicePointCloud(&pointCloud);
             doubleClickPickerCallback->SetApp(&app);
 
             app.GetInteractor()->AddObserver(vtkCommand::LeftButtonPressEvent, doubleClickPickerCallback);
@@ -92,7 +99,7 @@ int main(int argc, char** argv)
         {
             auto keyCallback = vtkSmartPointer<KeyPressCallback>::New();
             keyCallback->SetApp(&app);
-            keyCallback->pointCloud = &pointCloud;
+            keyCallback->SetDevicePointCloud(&pointCloud);
             app.GetInteractor()->AddObserver(vtkCommand::KeyPressEvent, keyCallback);
         }
 
@@ -201,21 +208,6 @@ int main(int argc, char** argv)
                 pointCloud.SaveToALP(resource_file_name_alp);
             }
         }
-
-        //map<uint3, unsigned int> colorHistogram;
-        //for (size_t i = 0; i < pointCloud.GetNumberOfPoints(); i++)
-        //{
-        //    auto& c = pointCloud.GetHostBuffers().colors[i];
-        //    colorHistogram[make_uint3(c.x(), c.y(), c.z())]++;
-        //}
-
-        //for (auto& kvp : colorHistogram)
-        //{
-        //    //if (1 < kvp.second)
-        //    {
-        //        printf("[%3d, %3d, %3d] : %d\n", kvp.first.x, kvp.first.y, kvp.first.z, kvp.second);
-        //    }
-        //}
 
         auto defaultEntity = app.CreateEntity("Default");
         //defaultEntity->FromPointCloud(&pointCloud, roi);

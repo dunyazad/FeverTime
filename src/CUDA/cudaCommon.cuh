@@ -62,7 +62,7 @@ __device__ __constant__ const int3 neighbor_offsets_124[124] = {
 	{ 2, 1,-2}, { 2, 1,-1}, { 2, 1, 0}, { 2, 1, 1}, { 2, 1, 2},
 	{ 2, 2,-2}, { 2, 2,-1}, { 2, 2, 0}, { 2, 2, 1}, { 2, 2, 2}
 };
-//
+
 //__device__ __constant__ const int3 neighbor_offsets_342[342] = {
 //    {-3,-3,-3}, {-3,-3,-2}, {-3,-3,-1}, {-3,-3,  0}, {-3,-3,  1}, {-3,-3,  2}, {-3,-3,  3},
 //    {-3,-2,-3}, {-3,-2,-2}, {-3,-2,-1}, {-3,-2,  0}, {-3,-2,  1}, {-3,-2,  2}, {-3,-2,  3},
@@ -129,5 +129,14 @@ struct PointPNC
 	float3 color;
 };
 
+__host__ __device__ float3 operator-(const float3& a, const float3& b);
+__host__ __device__ float3 operator+(const float3& a, const float3& b);
+__host__ __device__ float3 operator*(const float3& a, float b);
+__host__ __device__ float3 operator*(float b, const float3& a);
+__host__ __device__ float dot(const float3& a, const float3& b);
+__host__ __device__ float3 cross(const float3& a, const float3& b);
+
 __device__ __host__ float hashToFloat(uint32_t seed);
 __device__ __host__ size_t voxel_hash(int3 coord, size_t tableSize);
+
+__device__ float atomicMinFloat(float* address, float value);

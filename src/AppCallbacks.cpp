@@ -5,6 +5,74 @@
 
 #include <Debugging/VisualDebugging.h>
 
+SingleClickPickerCallback* SingleClickPickerCallback::New()
+{
+    return new SingleClickPickerCallback;
+}
+
+void SingleClickPickerCallback::Execute(vtkObject* caller, unsigned long eventId, void* callData)
+{
+    auto interactor = static_cast<vtkRenderWindowInteractor*>(caller);
+    auto picker = static_cast<vtkPointPicker*>(interactor->GetPicker());
+
+    //auto now = std::chrono::steady_clock::now();
+    //auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - lastClickTime).count();
+    //lastClickTime = now;
+
+    //if (elapsed > 50 && elapsed < 300) // 감지 기준: 50ms 이상, 300ms 이하
+    {
+        int x, y;
+        interactor->GetEventPosition(x, y);
+        if (picker->Pick(x, y, 0, app->GetRenderer()))
+        {
+            vtkIdType pid = picker->GetPointId();
+            double* pos = picker->GetPickPosition();
+
+            if (pid >= 0)
+            {
+                vtkCamera* camera = app->GetRenderer()->GetActiveCamera();
+
+                double focal[3] = { pos[0], pos[1], pos[2] };
+                double position[3];
+                double direction[3];
+                camera->GetDirectionOfProjection(direction);
+                double dist = std::sqrt(vtkMath::Distance2BetweenPoints(camera->GetPosition(), camera->GetFocalPoint()));
+
+                for (int i = 0; i < 3; ++i)
+                    position[i] = focal[i] - direction[i] * dist;
+
+                auto index = pointCloud->Pick(
+                    make_float3(position[0], position[1], position[2]),
+                    make_float3(direction[0], direction[1], direction[2]));
+
+                thrust::host_vector<float3> positions(pointCloud->GetPositions());
+                auto pickedPosition = positions[index];
+
+                printf("%d - %f, %f, %f\n", index, pickedPosition.x, pickedPosition.y, pickedPosition.z);
+
+                //camera->SetFocalPoint(focal);
+                //camera->SetPosition(position);
+
+                auto p = Eigen::Vector3f(pickedPosition.x, pickedPosition.y, pickedPosition.z);
+                auto dx = Eigen::Vector3f(10.0f * 0.5f, 0.0f, 0.0f);
+                auto dy = Eigen::Vector3f(0.0f, 10.0f * 0.5f, 0.0f);
+                auto dz = Eigen::Vector3f(0.0f, 0.0f, 10.0f * 0.5f);
+
+                VisualDebugging::Clear("Picked");
+                VisualDebugging::AddLine("Picked", p, p + dx, Color4::Red);
+                VisualDebugging::AddLine("Picked", p, p + dy, Color4::Green);
+                VisualDebugging::AddLine("Picked", p, p + dz, Color4::Blue);
+
+
+                app->GetActiveEntity()->UpdateColorFromBuffer(pointCloud);
+
+                app->GetRenderer()->ResetCameraClippingRange();
+                app->GetRenderer()->GetRenderWindow()->Render();
+            }
+        }
+    }
+}
+
 DoubleClickPickerCallback* DoubleClickPickerCallback::New()
 {
     return new DoubleClickPickerCallback;

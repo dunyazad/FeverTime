@@ -38,6 +38,8 @@ public:
 	virtual bool LoadFromALP(const string& filename, const Eigen::AlignedBox3f& roi) = 0;
 	virtual bool SaveToALP(const string& filename) = 0;
 
+	virtual size_t Pick(float3 rayOrigin, float3 rayDirection) = 0;
+
 	inline Eigen::AlignedBox3f& GetAABB() { return aabb; }
 	inline const Eigen::AlignedBox3f& GetAABB() const { return aabb; }
 
@@ -81,6 +83,8 @@ public:
 	virtual bool LoadFromALP(const string& filename, const Eigen::AlignedBox3f& roi);
 
 	virtual bool SaveToALP(const string& filename);
+
+	virtual size_t Pick(float3 rayOrigin, float3 rayDirection);
 
 	inline thrust::device_vector<float3>& GetPositions() { return positions; }
 	inline const thrust::device_vector<float3>& GetPositions() const { return positions; }
@@ -136,6 +140,8 @@ public:
 	virtual bool LoadFromALP(const string& filename, const Eigen::AlignedBox3f& roi);
 
 	virtual bool SaveToALP(const string& filename);
+
+	virtual size_t Pick(float3 rayOrigin, float3 rayDirection);
 
 	inline thrust::host_vector<float3>& GetPositions() { return positions; }
 	inline const thrust::host_vector<float3>& GetPositions() const { return positions; }

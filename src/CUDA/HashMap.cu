@@ -37,6 +37,74 @@ void HashMap::Clear(size_t capacity)
 	info.subLabelCounter.Clear();
 }
 
+__device__ size_t InsertHashMapVoxel(HashMapInfo& info, int3 coord)
+{
+	size_t h = voxel_hash(coord, info.capacity);
+
+	for (int i = 0; i < info.maxProbe; ++i)
+	{
+		size_t slot = (h + i) % info.capacity;
+		HashMapVoxel* voxel = &info.d_hashTable[slot];
+
+		int prev = atomicCAS(&(voxel->label), 0, slot);
+		if (prev == 0)
+		{
+			voxel->coord = coord;
+			voxel->position = Eigen::Vector3f(coord.x * info.voxelSize, coord.y * info.voxelSize, coord.z * info.voxelSize);
+			voxel->pointCount = 0;
+			voxel->neighborCount = 0;
+			voxel->emptyNeighborCount = 0;
+			voxel->normal = Eigen::Vector3f::Zero();
+			voxel->gradient = Eigen::Vector3f::Zero();
+			voxel->divergence = 0.0f;
+			voxel->colorDistance = 0.0f;
+			voxel->normalDiscontinue = 0;
+			voxel->color = Eigen::Vector4b(255, 255, 255, 255);
+			voxel->deleted = 0;
+
+			unsigned int index = atomicAdd(info.d_numberOfOccupiedVoxels, 1);
+			info.d_occupiedVoxelIndices[index] = coord;
+
+			return slot;
+		}
+		else
+		{
+			if (voxel->coord.x == coord.x &&
+				voxel->coord.y == coord.y &&
+				voxel->coord.z == coord.z)
+			{
+				return slot;
+			}
+		}
+	}
+
+	return INVALID_VOXEL_SLOT;
+}
+
+__device__ bool DeleteHashMapVoxel(HashMapInfo& info, int3 coord)
+{
+	size_t h = voxel_hash(coord, info.capacity);
+	for (int i = 0; i < info.maxProbe; ++i)
+	{
+		size_t slot = (h + i) % info.capacity;
+		HashMapVoxel* voxel = &info.d_hashTable[slot];
+
+		if (voxel->coord.x == coord.x &&
+			voxel->coord.y == coord.y &&
+			voxel->coord.z == coord.z &&
+			voxel->deleted == 0)
+		{
+			voxel->deleted = 1;
+			voxel->label = 0;  // 필요에 따라 reset
+			voxel->subLabel = 0;
+			voxel->reservedToDeleted = 0;
+			return true;
+		}
+	}
+
+	return false;
+}
+
 //__global__ void Kernel_InsertPoints(HashMapInfo info, PointCloudBuffers buffers)
 //{
 //	int idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -89,7 +157,7 @@ void HashMap::Clear(size_t capacity)
 //	cudaMemcpy(&info.h_numberOfOccupiedVoxels, info.d_numberOfOccupiedVoxels, sizeof(unsigned int), cudaMemcpyDeviceToHost);
 //}
 
-__global__ void Kernel_InsertPoints_(HashMapInfo info, float3* positions, float3* normals, uchar4* colors, size_t numberOfPoints)
+__global__ void Kernel_InsertPoints(HashMapInfo info, float3* positions, float3* normals, uchar4* colors, size_t numberOfPoints)
 {
 	int idx = blockIdx.x * blockDim.x + threadIdx.x;
 	if (idx >= numberOfPoints) return;
@@ -133,7 +201,7 @@ void HashMap::InsertPoints(float3* positions, float3* normals, uchar4* colors, s
 	unsigned int blockSize = 256;
 	unsigned int gridOccupied = (numberOfPoints + blockSize - 1) / blockSize;
 
-	Kernel_InsertPoints_ << <gridOccupied, blockSize >> > (info, positions, normals, colors, numberOfPoints);
+	Kernel_InsertPoints << <gridOccupied, blockSize >> > (info, positions, normals, colors, numberOfPoints);
 
 	cudaDeviceSynchronize();
 
@@ -302,72 +370,4 @@ __device__ HashMapVoxel* GetHashMapVoxel(HashMapInfo& info, size_t slot)
 {
 	if (INVALID_VOXEL_SLOT == slot) return INVALID_VOXEL;
 	return &(info.d_hashTable[slot]);
-}
-
-__device__ size_t InsertHashMapVoxel(HashMapInfo& info, int3 coord)
-{
-	size_t h = voxel_hash(coord, info.capacity);
-
-	for (int i = 0; i < info.maxProbe; ++i)
-	{
-		size_t slot = (h + i) % info.capacity;
-		HashMapVoxel* voxel = &info.d_hashTable[slot];
-
-		int prev = atomicCAS(&(voxel->label), 0, slot);
-		if (prev == 0)
-		{
-			voxel->coord = coord;
-			voxel->position = Eigen::Vector3f(coord.x * info.voxelSize, coord.y * info.voxelSize, coord.z * info.voxelSize);
-			voxel->pointCount = 0;
-			voxel->neighborCount = 0;
-			voxel->emptyNeighborCount = 0;
-			voxel->normal = Eigen::Vector3f::Zero();
-			voxel->gradient = Eigen::Vector3f::Zero();
-			voxel->divergence = 0.0f;
-			voxel->colorDistance = 0.0f;
-			voxel->normalDiscontinue = 0;
-			voxel->color = Eigen::Vector4b(255, 255, 255, 255);
-			voxel->deleted = 0;
-
-			unsigned int index = atomicAdd(info.d_numberOfOccupiedVoxels, 1);
-			info.d_occupiedVoxelIndices[index] = coord;
-
-			return slot;
-		}
-		else
-		{
-			if (voxel->coord.x == coord.x &&
-				voxel->coord.y == coord.y &&
-				voxel->coord.z == coord.z)
-			{
-				return slot;
-			}
-		}
-	}
-
-	return INVALID_VOXEL_SLOT;
-}
-
-__device__ bool DeleteHashMapVoxel(HashMapInfo& info, int3 coord)
-{
-	size_t h = voxel_hash(coord, info.capacity);
-	for (int i = 0; i < info.maxProbe; ++i)
-	{
-		size_t slot = (h + i) % info.capacity;
-		HashMapVoxel* voxel = &info.d_hashTable[slot];
-
-		if (voxel->coord.x == coord.x &&
-			voxel->coord.y == coord.y &&
-			voxel->coord.z == coord.z &&
-			voxel->deleted == 0)
-		{
-			voxel->deleted = 1;
-			voxel->label = 0;  // 필요에 따라 reset
-			voxel->subLabel = 0;
-			voxel->reservedToDeleted = 0;
-			return true;
-		}
-	}
-
-	return false;
 }

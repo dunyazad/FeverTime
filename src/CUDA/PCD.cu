@@ -482,6 +482,93 @@ bool DevicePointCloud::SaveToALP(const string& filename)
 	return true;
 }
 
+__global__ void Kernel_PickPointWeightedByDepth(
+	float3* positions,
+	float3* normals,
+	uchar4* colors,
+	int numPoints,
+	float3 rayOrigin,
+	float3 rayDir,           // 정규화된 ray 방향
+	float radiusThreshold,
+	//float minDepth,
+	//float maxDepth,
+	float alpha,  // 수직 거리 가중치
+	float beta,   // depth 가중치
+	int* bestIndex,
+	float* minScore
+) {
+	int idx = blockIdx.x * blockDim.x + threadIdx.x;
+	if (idx >= numPoints) return;
+
+	float3 p = positions[idx];
+	float3 v = p - rayOrigin;
+
+	float t = dot(v, rayDir);  // depth
+	//if (t < minDepth || t > maxDepth) return;
+
+	float3 proj = rayOrigin + t * rayDir;
+	float3 offset = p - proj;
+	float d_perp = sqrt(dot(offset, offset));
+	if (d_perp > radiusThreshold) return;
+
+	//colors[idx].x = 255;
+	//colors[idx].y = 0;
+	//colors[idx].z = 0;
+	//colors[idx].w = 255;
+	
+	//printf("REd\n");
+
+
+	float score = alpha * d_perp + beta * t;
+
+	float prev = atomicMinFloat(minScore, score);
+	if (prev > score) {
+		*bestIndex = idx;
+	}
+}
+
+size_t DevicePointCloud::Pick(float3 rayOrigin, float3 rayDirection)
+{
+	int* d_closestIndex;
+	float* d_minDistSq;
+	cudaMalloc(&d_closestIndex, sizeof(int));
+	cudaMalloc(&d_minDistSq, sizeof(float));
+
+	int initIdx = -1;
+	float initDist = FLT_MAX;
+	cudaMemcpy(d_closestIndex, &initIdx, sizeof(int), cudaMemcpyHostToDevice);
+	cudaMemcpy(d_minDistSq, &initDist, sizeof(float), cudaMemcpyHostToDevice);
+
+	float alpha = 1.0f;  // ray 중심성
+	float beta = 0.25f;  // depth 우선순위
+
+	int threads = 256;
+	int blocks = (numberOfElements + threads - 1) / threads;
+	Kernel_PickPointWeightedByDepth << <blocks, threads >> > (
+		thrust::raw_pointer_cast(positions.data()),
+		thrust::raw_pointer_cast(normals.data()),
+		thrust::raw_pointer_cast(colors.data()),
+		numberOfElements,
+		rayOrigin,
+		rayDirection,
+		5.0f,
+		//0.1f,        // minDepth
+		//5.0f,        // maxDepth
+		alpha,
+		beta,
+		d_closestIndex,
+		d_minDistSq);
+
+	int h_closestIndex = -1;
+	cudaMemcpy(&h_closestIndex, d_closestIndex, sizeof(int), cudaMemcpyDeviceToHost);
+
+	printf("h_closestIndex = %d\n", h_closestIndex);
+
+	cudaFree(d_closestIndex);
+	cudaFree(d_minDistSq);
+
+	return h_closestIndex >= 0 ? static_cast<size_t>(h_closestIndex) : size_t(-1);
+}
 
 
 
@@ -935,4 +1022,30 @@ bool HostPointCloud::SaveToALP(const string& filename)
 	alp.Serialize(filename);
 
 	return true;
+}
+
+size_t HostPointCloud::Pick(float3 rayOrigin, float3 rayDirection)
+{
+	float minDistSq = FLT_MAX;
+	int bestIndex = -1;
+
+	for (size_t i = 0; i < numberOfElements; ++i)
+	{
+		float3 p = positions[i];
+		float3 v = p - rayOrigin;
+		float t = dot(v, rayDirection);
+		if (t < 0) continue;
+
+		float3 closest = rayOrigin + t * rayDirection;
+		float3 diff = p - closest;
+		float distSq = dot(diff, diff);
+
+		if (distSq < 0.01f * 0.01f && distSq < minDistSq)
+		{
+			minDistSq = distSq;
+			bestIndex = static_cast<int>(i);
+		}
+	}
+
+	return bestIndex >= 0 ? static_cast<size_t>(bestIndex) : size_t(-1);
 }
