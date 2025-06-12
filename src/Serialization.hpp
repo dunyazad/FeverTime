@@ -206,15 +206,15 @@ public:
 
 	virtual inline bool AddPoint(float x, float y, float z)
 	{
-		Coordinate coordinate(x, y, z);
-		if (0 != pointSet.count(coordinate))
-		{
-			return false;
-		}
-		else
-		{
-			pointSet.insert(coordinate);
-		}
+		//Coordinate coordinate(x, y, z);
+		//if (0 != pointSet.count(coordinate))
+		//{
+		//	return false;
+		//}
+		//else
+		//{
+		//	pointSet.insert(coordinate);
+		//}
 
 		points.push_back(x);
 		points.push_back(y);
@@ -236,15 +236,15 @@ public:
 
 	virtual inline bool AddPoint(float x, float y, float z, float w)
 	{
-		Coordinate coordinate(x, y, z);
-		if (0 != pointSet.count(coordinate))
-		{
-			return false;
-		}
-		else
-		{
-			pointSet.insert(coordinate);
-		}
+		//Coordinate coordinate(x, y, z);
+		//if (0 != pointSet.count(coordinate))
+		//{
+		//	return false;
+		//}
+		//else
+		//{
+		//	pointSet.insert(coordinate);
+		//}
 
 		points.push_back(x);
 		points.push_back(y);
@@ -267,15 +267,15 @@ public:
 
 	virtual inline bool AddPointFloat3(const float* point)
 	{
-		Coordinate coordinate(point[0], point[1], point[2]);
-		if (0 != pointSet.count(coordinate))
-		{
-			return false;
-		}
-		else
-		{
-			pointSet.insert(coordinate);
-		}
+		//Coordinate coordinate(point[0], point[1], point[2]);
+		//if (0 != pointSet.count(coordinate))
+		//{
+		//	return false;
+		//}
+		//else
+		//{
+		//	pointSet.insert(coordinate);
+		//}
 
 		points.push_back(point[0]);
 		points.push_back(point[1]);
@@ -297,15 +297,15 @@ public:
 
 	virtual inline bool AddPointFloat4(const float* point)
 	{
-		Coordinate coordinate(point[0], point[1], point[2], point[3]);
-		if (0 != pointSet.count(coordinate))
-		{
-			return false;
-		}
-		else
-		{
-			pointSet.insert(coordinate);
-		}
+		//Coordinate coordinate(point[0], point[1], point[2], point[3]);
+		//if (0 != pointSet.count(coordinate))
+		//{
+		//	return false;
+		//}
+		//else
+		//{
+		//	pointSet.insert(coordinate);
+		//}
 
 		points.push_back(point[0]);
 		points.push_back(point[1]);

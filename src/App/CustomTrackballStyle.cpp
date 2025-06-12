@@ -103,6 +103,12 @@ void CustomTrackballStyle::OnMouseMove()
 
         app->OnMouseMove(pos[0], pos[1], lastPos[0], lastPos[1], LeftButtonPressed, MiddleButtonPressed, RightButtonPressed);
     }
+    else if (MiddleButtonPressed)
+    {
+        this->Pan();
+
+        app->OnMouseMove(pos[0], pos[1], lastPos[0], lastPos[1], LeftButtonPressed, MiddleButtonPressed, RightButtonPressed);
+    }
 }
 
 void CustomTrackballStyle::OnTimer()
@@ -133,6 +139,82 @@ void CustomTrackballStyle::Rotate()
     camera->Azimuth(rxf);
     camera->Elevation(ryf);
     camera->OrthogonalizeViewUp();
+
+    rwi->Render();
+}
+
+void CustomTrackballStyle::Pan()
+{
+    if (!CurrentRenderer)
+        return;
+
+    vtkRenderWindowInteractor* rwi = this->Interactor;
+    vtkCamera* camera = CurrentRenderer->GetActiveCamera();
+    if (!camera)
+        return;
+
+    int* pos = rwi->GetEventPosition();
+    int* lastPos = rwi->GetLastEventPosition();
+
+    int dx = pos[0] - lastPos[0];
+    int dy = pos[1] - lastPos[1];
+
+    int* size = CurrentRenderer->GetRenderWindow()->GetSize();
+    double delta_x = static_cast<double>(dx) / size[0];
+    double delta_y = static_cast<double>(dy) / size[1];
+
+    double bounds[6];
+    CurrentRenderer->ComputeVisiblePropBounds(bounds);
+
+    double center[3] = {
+        (bounds[0] + bounds[1]) / 2.0,
+        (bounds[2] + bounds[3]) / 2.0,
+        (bounds[4] + bounds[5]) / 2.0
+    };
+
+    double viewFocus[4], viewPoint[4];
+    camera->GetFocalPoint(viewFocus);
+    camera->GetPosition(viewPoint);
+
+    CurrentRenderer->SetWorldPoint(viewFocus[0], viewFocus[1], viewFocus[2], 1.0);
+    CurrentRenderer->WorldToDisplay();
+    double* displayFocus = CurrentRenderer->GetDisplayPoint();
+
+    double focalDepth = displayFocus[2];
+
+    double newDisplayPoint[3] = {
+        displayFocus[0] - dx,
+        displayFocus[1] - dy,
+        focalDepth
+    };
+
+    CurrentRenderer->SetDisplayPoint(newDisplayPoint);
+    CurrentRenderer->DisplayToWorld();
+    double* newWorldPoint = CurrentRenderer->GetWorldPoint();
+    if (newWorldPoint[3] == 0.0)
+        return;
+
+    double worldFocus[3] = {
+        newWorldPoint[0] / newWorldPoint[3],
+        newWorldPoint[1] / newWorldPoint[3],
+        newWorldPoint[2] / newWorldPoint[3]
+    };
+
+    double motionVector[3] = {
+        worldFocus[0] - viewFocus[0],
+        worldFocus[1] - viewFocus[1],
+        worldFocus[2] - viewFocus[2]
+    };
+
+    camera->SetFocalPoint(
+        viewFocus[0] + motionVector[0],
+        viewFocus[1] + motionVector[1],
+        viewFocus[2] + motionVector[2]);
+
+    camera->SetPosition(
+        viewPoint[0] + motionVector[0],
+        viewPoint[1] + motionVector[1],
+        viewPoint[2] + motionVector[2]);
 
     rwi->Render();
 }

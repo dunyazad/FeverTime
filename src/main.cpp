@@ -397,13 +397,13 @@ int main(int argc, char** argv)
         }
         else if (key == "Left")
         {
-            //app->DecreaseActiveEntityIndex();
-            //app->GetRenderer()->GetRenderWindow()->Render();
+            app->DecreaseActiveEntityIndex();
+            app->GetRenderer()->GetRenderWindow()->Render();
         }
         else if (key == "Right")
         {
-            //app->IncreaseActiveEntityIndex();
-            //app->GetRenderer()->GetRenderWindow()->Render();
+            app->IncreaseActiveEntityIndex();
+            app->GetRenderer()->GetRenderWindow()->Render();
         }
         else if (key == "3")
         {
@@ -445,7 +445,7 @@ int main(int argc, char** argv)
                 thrust::host_vector<float3> normals(pointCloud.GetNormals());
                 thrust::host_vector<uchar4> colors(pointCloud.GetColors());
                 auto pickedPosition = positions[index];
-                auto pickedNormal = normals[index] ;
+                auto pickedNormal = normals[index];
                 auto pickedColor = colors[index];
 
                 //VisualDebugging::AddLine("Picked",
@@ -470,7 +470,7 @@ int main(int argc, char** argv)
 
                 camera->SetFocalPoint(pickedPosition.x, pickedPosition.y, pickedPosition.z);
 
-                app->GetActiveEntity()->UpdateColorFromBuffer(&pointCloud);
+                //app->GetActiveEntity()->UpdateColorFromBuffer(&pointCloud);
 
                 app->GetRenderer()->ResetCameraClippingRange();
                 app->GetRenderer()->GetRenderWindow()->Render();
@@ -623,7 +623,7 @@ int main(int argc, char** argv)
         }
         
 
-        /*
+        
         {
             DevicePointCloud pcd;
 
@@ -635,12 +635,12 @@ int main(int argc, char** argv)
 
             pcd.Compact();
 
-            auto entity = app.CreateEntity("Clustering Filter");
+            auto entity = app->CreateEntity("Clustering Filter");
             entity->FromPointCloud(&pcd);
 
             entity->SetVisibility(false);
         }
-        */
+        
 
         /*
         {

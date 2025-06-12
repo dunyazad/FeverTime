@@ -346,6 +346,7 @@ __global__ void Kernel_CheckNeighbor(HashMapInfo info, float3* positions, float3
 	if (idx >= numberOfPoints) return;
 	
 	auto& p = positions[idx];
+	auto& n = normals[idx];
 	int3 coord = make_int3(floorf(p.x / info.voxelSize), floorf(p.y / info.voxelSize), floorf(p.z / info.voxelSize));
 	
 	auto slot = GetHashMapVoxelSlot(info, coord);
@@ -354,10 +355,56 @@ __global__ void Kernel_CheckNeighbor(HashMapInfo info, float3* positions, float3
 	auto voxel = GetHashMapVoxel(info, slot);
 	if (INVALID_VOXEL == voxel) return;
 	
-	colors[idx].x = 255;
-	colors[idx].y = 0;
-	colors[idx].z = 0;
-	colors[idx].w = 255;
+#pragma unroll
+	for (int ni = 0; ni < 26; ++ni)
+	{
+		int3 neighborCoord = make_int3(
+			coord.x + neighbor_offsets_26[ni].x,
+			coord.y + neighbor_offsets_26[ni].y,
+			coord.z + neighbor_offsets_26[ni].z);
+
+		size_t neighborSlot = GetHashMapVoxelSlot(info, neighborCoord);
+		if (INVALID_VOXEL_SLOT == slot) continue;
+
+		HashMapVoxel* neighborVoxel = GetHashMapVoxel(info, neighborSlot);
+		if (INVALID_VOXEL == neighborVoxel) continue;
+
+		float3 neighborCenter = make_float3(
+			((float)neighborCoord.x + 0.5f) * info.voxelSize,
+			((float)neighborCoord.y + 0.5f) * info.voxelSize,
+			((float)neighborCoord.z + 0.5f) * info.voxelSize
+		);
+
+		auto neighborNormal_ = (neighborVoxel->normal / (float)neighborVoxel->pointCount).normalized();
+		auto neighborNormal = make_float3(neighborNormal_.x(), neighborNormal_.y(), neighborNormal_.z());
+
+		//float3 diff = make_float3(p.x - neighborCenter.x, p.y - neighborCenter.y, p.z - neighborCenter.z);
+		//float distance = fabsf(dot(neighborNormal, diff));
+
+		//if (dot(n, neighborNormal) < 0)
+		//{
+		//	if (distance > info.voxelSize * 0.5f)
+		//	{
+		//		colors[idx] = make_uchar4(255, 0, 0, 255);
+		//		return;
+		//	}
+		//}
+
+		float dp = dot(n, neighborNormal);
+
+		const float COS_ANGLE_THRESHOLD = 0.7071f; // cos(45 degrees)
+
+		if (dp < COS_ANGLE_THRESHOLD)
+		{
+			colors[idx] = make_uchar4(255, 0, 0, 255);
+			return;
+		}
+	}
+
+	//colors[idx].x = 255;
+	//colors[idx].y = 0;
+	//colors[idx].z = 0;
+	//colors[idx].w = 255;
 }
 
 void PointCloudAlgorithm_FindSurfaceNeighbor::RunAlgorithm(DevicePointCloud* pointCloud)
@@ -498,10 +545,8 @@ void PointCloudAlgorithm_FindSurfaceNeighbor::RunAlgorithm(HostPointCloud* point
 
 void PointCloudAlgorithm_FindSurfaceNeighbor::IncreaseParameter()
 {
-	angleThreshold += 1.0f;
 }
 
 void PointCloudAlgorithm_FindSurfaceNeighbor::DecreaseParameter()
 {
-	angleThreshold -= 1.0f;
 }

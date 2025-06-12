@@ -164,6 +164,16 @@ public:
             }
         }
     }
+    inline void IncreaseActiveEntityIndex()
+    {
+        if (activeEntityIndex >= entities.size() - 1) return;
+        else SetActiveEntityIndex(activeEntityIndex + 1);
+    }
+    inline void DecreaseActiveEntityIndex()
+    {
+        if (activeEntityIndex <= 0) return;
+        else SetActiveEntityIndex(activeEntityIndex - 1);
+    }
 
     map<string, void*> registry;
 

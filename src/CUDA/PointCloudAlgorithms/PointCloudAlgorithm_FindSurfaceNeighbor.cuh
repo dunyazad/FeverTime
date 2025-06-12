@@ -15,5 +15,4 @@ public:
 	virtual void DecreaseParameter() override;
 
 private:
-	float angleThreshold = 25.0f;
 };
