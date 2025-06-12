@@ -1,7 +1,7 @@
-#include "App.h"
+#include <App/App.h>
 #include <windows.h>
 
-#include <Entity.h>
+#include <App/Entity.h>
 
 #include <Debugging/VisualDebugging.h>
 

@@ -2,13 +2,14 @@
 
 #include <Common.h>
 
-#include <Monitor.h>
 #include <Serialization.hpp>
-#include <CustomInteractorStyle.h>
-#include <CustomTrackballStyle.h>
-#include <AppCallbacks.h>
-#include <Entity.h>
-#include <USBHandler.h>
+
+#include <App/Monitor.h>
+#include <App/CustomInteractorStyle.h>
+#include <App/CustomTrackballStyle.h>
+#include <App/AppCallbacks.h>
+#include <App/Entity.h>
+#include <App/USBHandler.h>
 
 class TimerCallback : public vtkCommand
 {

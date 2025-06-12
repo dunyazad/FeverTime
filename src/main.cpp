@@ -1,7 +1,7 @@
 #pragma warning(disable : 4819)
 
-#include "App.h"
-#include "Entity.h"
+#include <App/App.h>
+#include <App/Entity.h>
 
 #include <CUDA/main.cuh>
 #include <CUDA/PointCloudAlgorithms/PointCloudAlgorithm_Clustering.cuh>
