@@ -89,6 +89,10 @@ int main(int argc, char** argv)
             interactor->GetRenderWindow()->Finalize();
             interactor->TerminateApp();
         }
+        else if (key == "BackSpace")
+        {
+            VisualDebugging::Clear("Picked");
+        }
         else if (key == "r")
         {
             std::cout << "R 키가 눌렸습니다. 카메라 리셋" << std::endl;
@@ -444,14 +448,13 @@ int main(int argc, char** argv)
                 auto pickedNormal = normals[index] ;
                 auto pickedColor = colors[index];
 
-                VisualDebugging::Clear("Picked");
-                VisualDebugging::AddLine("Picked",
-                    { (float)cameraPos[0], (float)cameraPos[1], (float)cameraPos[2] },
-                    {
-                        (float)cameraPos[0] + (float)dir[0] * 250.0f,
-                        (float)cameraPos[1] + (float)dir[1] * 250.0f,
-                        (float)cameraPos[2] + (float)dir[2] * 250.0f
-                    }, Color4::White);
+                //VisualDebugging::AddLine("Picked",
+                //    { (float)cameraPos[0], (float)cameraPos[1], (float)cameraPos[2] },
+                //    {
+                //        (float)cameraPos[0] + (float)dir[0] * 250.0f,
+                //        (float)cameraPos[1] + (float)dir[1] * 250.0f,
+                //        (float)cameraPos[2] + (float)dir[2] * 250.0f
+                //    }, Color4::White);
 
                 //VisualDebugging::AddSphere("Picked",
                 //    { pickedPosition.x, pickedPosition.y, pickedPosition.z },
