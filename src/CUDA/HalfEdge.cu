@@ -267,6 +267,12 @@ void TestHalfEdge()
 
 	ply.Deserialize("D:\\Resources\\3D\\PLY\\Boat.ply");
 
+	bool colorComponent4 = false;
+	if (ply.GetColors().size() / 4 == ply.GetPoints().size() / 3)
+	{
+		colorComponent4 = true;
+	}
+
 	for (size_t i = 0; i < ply.GetTriangleIndices().size() / 3; i++)
 	{
 		auto ti0 = ply.GetTriangleIndices()[i * 3 + 0];
@@ -285,15 +291,51 @@ void TestHalfEdge()
 		auto v2y = ply.GetPoints()[ti2 * 3 + 1];
 		auto v2z = ply.GetPoints()[ti2 * 3 + 2];
 
-		auto n0 = ply.GetNormals()[ti0];
-		auto n1 = ply.GetNormals()[ti1];
-		auto n2 = ply.GetNormals()[ti2];
+		auto n0x = ply.GetNormals()[ti0 * 3 + 0];
+		auto n0y = ply.GetNormals()[ti0 * 3 + 1];
+		auto n0z = ply.GetNormals()[ti0 * 3 + 2];
 
-		auto c0 = ply.GetColors()[ti0];
-		auto c1 = ply.GetColors()[ti1];
-		auto c2 = ply.GetColors()[ti2];
+		auto n1x = ply.GetNormals()[ti1 * 3 + 0];
+		auto n1y = ply.GetNormals()[ti1 * 3 + 1];
+		auto n1z = ply.GetNormals()[ti1 * 3 + 2];
 
-		//printf("0: (%f, %f, %f), v1: (%f, %f, %f), v2: (%f, %f, %f)\n", 
+		auto n2x = ply.GetNormals()[ti2 * 3 + 0];
+		auto n2y = ply.GetNormals()[ti2 * 3 + 1];
+		auto n2z = ply.GetNormals()[ti2 * 3 + 2];
+
+		if (false == colorComponent4)
+		{
+			auto c0x = ply.GetColors()[ti0 * 3 + 0];
+			auto c0y = ply.GetColors()[ti0 * 3 + 1];
+			auto c0z = ply.GetColors()[ti0 * 3 + 2];
+
+			auto c1x = ply.GetColors()[ti1 * 3 + 0];
+			auto c1y = ply.GetColors()[ti1 * 3 + 1];
+			auto c1z = ply.GetColors()[ti1 * 3 + 2];
+
+			auto c2x = ply.GetColors()[ti2 * 3 + 0];
+			auto c2y = ply.GetColors()[ti2 * 3 + 1];
+			auto c2z = ply.GetColors()[ti2 * 3 + 2];
+		}
+		else
+		{
+			auto c0x = ply.GetColors()[ti0 * 4 + 0];
+			auto c0y = ply.GetColors()[ti0 * 4 + 1];
+			auto c0z = ply.GetColors()[ti0 * 4 + 2];
+			auto c0w = ply.GetColors()[ti0 * 4 + 3];
+
+			auto c1x = ply.GetColors()[ti1 * 4 + 0];
+			auto c1y = ply.GetColors()[ti1 * 4 + 1];
+			auto c1z = ply.GetColors()[ti1 * 4 + 2];
+			auto c1w = ply.GetColors()[ti1 * 4 + 3];
+
+			auto c2x = ply.GetColors()[ti2 * 4 + 0];
+			auto c2y = ply.GetColors()[ti2 * 4 + 1];
+			auto c2z = ply.GetColors()[ti2 * 4 + 2];
+			auto c2w = ply.GetColors()[ti2 * 4 + 3];
+		}
+
+		//printf("v0: (%f, %f, %f), v1: (%f, %f, %f), v2: (%f, %f, %f)\n", 
 		//	v0x, v0y, v0z, 
 		//	v1x, v1y, v1z, 
 		//	v2x, v2y, v2z);
@@ -321,19 +363,21 @@ void TestHalfEdge()
 		mesh);
 
 
+	float* h_points = new float[ply.GetPoints().size()];
+	cudaMemcpy(h_points, d_points, sizeof(float) * ply.GetPoints().size(), cudaMemcpyDeviceToHost);
 
-	std::vector<float> host_debug(ply.GetPoints().size());
-	cudaMemcpy(host_debug.data(), d_points, sizeof(float) * ply.GetPoints().size(), cudaMemcpyDeviceToHost);
+	cudaDeviceSynchronize();
 
 	for (int i = 0; i < 10; ++i) {
 		std::cout << "Debug Point " << i << ": "
-			<< host_debug[i * 3 + 0] << ", "
-			<< host_debug[i * 3 + 1] << ", "
-			<< host_debug[i * 3 + 2] << "\n";
+			<< h_points[i * 3 + 0] << ", "
+			<< h_points[i * 3 + 1] << ", "
+			<< h_points[i * 3 + 2] << "\n";
 	}
 
+	delete[] h_points;
 
-	SerializeHalfEdgeMesh(mesh, "D:/Resources/3D/PLY/Boat_halfedge.txt");
+	//SerializeHalfEdgeMesh(mesh, "D:/Resources/3D/PLY/Boat_halfedge.txt");
 
 	//
 	//ply.Serialize("D:\\Resources\\3D\\PLY\\Boat_out.ply");
