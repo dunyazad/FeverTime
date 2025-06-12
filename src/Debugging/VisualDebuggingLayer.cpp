@@ -1,7 +1,7 @@
 #include <Debugging/VisualDebuggingLayer.h>
 #include <Debugging/vtkPolygonalFrustumSource.h>
 
-#include <CustomPolyDataFilter.h>
+#include <App/CustomPolyDataFilter.h>
 
 VisualDebuggingLayer::VisualDebuggingLayer(const string& layerName)
 	: layerName(layerName) {}
@@ -81,6 +81,56 @@ void VisualDebuggingLayer::Initialize(vtkSmartPointer<vtkRenderer> renderer)
 		trianglePolyData->GetCellData()->SetScalars(colors);
 
 		renderer->AddActor(triangleActor);
+	}
+#pragma endregion
+
+#pragma region Plane
+	{
+		planePolyData = vtkSmartPointer<vtkPolyData>::New();
+
+		vtkNew<vtkPoints> points;
+		planePolyData->SetPoints(points);
+
+		vtkNew<vtkUnsignedCharArray> colors;
+		colors->SetName("Colors");
+		colors->SetNumberOfComponents(3);
+		planePolyData->GetPointData()->AddArray(colors);
+
+		vtkNew<vtkDoubleArray> scales;
+		scales->SetName("Scales");
+		scales->SetNumberOfComponents(3);
+		planePolyData->GetPointData()->AddArray(scales);
+
+		vtkNew<vtkDoubleArray> normals;
+		normals->SetNumberOfComponents(3);
+		normals->SetName("Normals");
+		planePolyData->GetPointData()->AddArray(normals);
+
+		vtkNew<vtkPlaneSource> planeSource;
+		planeSource->SetOrigin(0.0, -0.5, -0.5);
+		planeSource->SetPoint1(0.0, 0.5, -0.5);
+		planeSource->SetPoint2(0.0, -0.5,  0.5);
+		planeSource->Update();
+
+		//planeGlyph3D = vtkSmartPointer<vtkGlyph3D>::New();
+		planePolyDataMapper = vtkSmartPointer<vtkGlyph3DMapper>::New();
+		planePolyDataMapper->SetSourceConnection(planeSource->GetOutputPort());
+		planePolyDataMapper->SetInputData(planePolyData);
+		planePolyDataMapper->SetScalarModeToUsePointFieldData();
+		planePolyDataMapper->SetScaleModeToScaleByVectorComponents();
+		planePolyDataMapper->SetScaleArray("Scales");
+		planePolyDataMapper->SelectColorArray("Colors");
+		planePolyDataMapper->SetOrientationArray("Normals");
+		planePolyDataMapper->OrientOn();
+		planePolyDataMapper->Update();
+
+		planeActor = vtkSmartPointer<vtkActor>::New();
+		planeActor->SetMapper(planePolyDataMapper);
+		// planeActor->GetProperty()->SetAmbient(1.0);
+		// planeActor->GetProperty()->SetDiffuse(0.0);
+		//planeActor->SetObjectName(layerName + ".planeActor");
+
+		renderer->AddActor(planeActor);
 	}
 #pragma endregion
 
@@ -435,6 +485,24 @@ void VisualDebuggingLayer::Terminate()
 	}
 #pragma endregion
 
+#pragma region Plane
+	if (nullptr != planePolyData)
+	{
+		planePolyData = nullptr;
+	}
+
+	if (nullptr != planePolyDataMapper)
+	{
+		planePolyDataMapper = nullptr;
+	}
+
+	if (nullptr != planeActor)
+	{
+		renderer->RemoveActor(planeActor);
+		planeActor = nullptr;
+	}
+#pragma endregion
+
 #pragma region Sphere
 	if (nullptr != spherePolyData)
 	{
@@ -541,6 +609,7 @@ void VisualDebuggingLayer::Update()
 	DrawPoints();
 	DrawLines();
 	DrawTriangle();
+	DrawPlane();
 	DrawSpheres();
 	DrawCubes();
 	DrawGlyphs();
@@ -575,6 +644,11 @@ void VisualDebuggingLayer::AddTriangle(const Eigen::Vector3f& p0, const Eigen::V
 	triangleInfosToDraw.push_back(std::make_tuple(p0, p1, p2, color));
 }
 
+void VisualDebuggingLayer::AddPlane(const Eigen::Vector3f& center, const Eigen::Vector3f& scale, const Eigen::Vector3f& normal, const Color4& color)
+{
+	planeInfosToDraw.push_back(std::make_tuple(center, scale, normal, color));
+}
+
 void VisualDebuggingLayer::AddSphere(const Eigen::Vector3f& center, const Eigen::Vector3f& scale, const Eigen::Vector3f& normal, const Color4& color)
 {
 	sphereInfosToDraw.push_back(std::make_tuple(center, scale, normal, color));
@@ -607,6 +681,7 @@ void VisualDebuggingLayer::ShowAll(bool show)
 	ShowPoints(show);
 	ShowLines(show);
 	ShowTriangles(show);
+	ShowPlanes(show);
 	ShowSpheres(show);
 	ShowCubes(show);
 	ShowArrows(show);
@@ -618,6 +693,7 @@ void VisualDebuggingLayer::ToggleVisibilityAll()
 	TogglePoints();
 	ToggleLines();
 	ToggleTriangles();
+	TogglePlanes();
 	ToggleSpheres();
 	ToggleCubes();
 	ToggleArrows();
@@ -629,6 +705,7 @@ void VisualDebuggingLayer::SetRepresentationAll(Representation representation)
 	SetRepresentationPoints(representation);
 	SetRepresentationLines(representation);
 	SetRepresentationTriangles(representation);
+	SetRepresentationPlanes(representation);
 	SetRepresentationSpheres(representation);
 	SetRepresentationCubes(representation);
 	SetRepresentationArrows(representation);
@@ -640,6 +717,7 @@ void VisualDebuggingLayer::ToggleAllRepresentation()
 	TogglePointsRepresentation();
 	ToggleLinesRepresentation();
 	ToggleTrianglesRepresentation();
+	TogglePlanesRepresentation();
 	ToggleSpheresRepresentation();
 	ToggleCubesRepresentation();
 	ToggleArrowsRepresentation();
@@ -739,6 +817,38 @@ void VisualDebuggingLayer::ToggleTrianglesRepresentation()
 	if (nullptr != triangleActor)
 	{
 		ToggleActorRepresentation(renderer, triangleActor);
+	}
+}
+
+void VisualDebuggingLayer::ShowPlanes(bool show)
+{
+	if (nullptr != planeActor)
+	{
+		ShowActor(renderer, planeActor, show);
+	}
+}
+
+void VisualDebuggingLayer::TogglePlanes()
+{
+	if (nullptr != planeActor)
+	{
+		ToggleActorVisibility(renderer, planeActor);
+	}
+}
+
+void VisualDebuggingLayer::SetRepresentationPlanes(Representation representation)
+{
+	if (nullptr != planeActor)
+	{
+		SetActorRepresentation(renderer, planeActor, representation);
+	}
+}
+
+void VisualDebuggingLayer::TogglePlanesRepresentation()
+{
+	if (nullptr != planeActor)
+	{
+		ToggleActorRepresentation(renderer, planeActor);
 	}
 }
 
@@ -1010,6 +1120,40 @@ void VisualDebuggingLayer::DrawTriangle()
 	trianglePolyData->ShallowCopy(appendFilter->GetOutput());
 
 	triangleInfosToDraw.clear();
+}
+
+void VisualDebuggingLayer::DrawPlane()
+{
+	if (planeInfosToDraw.empty())
+		return;
+
+	auto points = planePolyData->GetPoints();
+	auto pointData = planePolyData->GetPointData();
+	vtkDoubleArray* scales =
+		vtkDoubleArray::SafeDownCast(pointData->GetArray("Scales"));
+	vtkDoubleArray* normals =
+		vtkDoubleArray::SafeDownCast(pointData->GetArray("Normals"));
+	vtkUnsignedCharArray* colors =
+		vtkUnsignedCharArray::SafeDownCast(pointData->GetArray("Colors"));
+
+	for (auto& planeInfo : planeInfosToDraw)
+	{
+		auto center = std::get<0>(planeInfo);
+		auto scale = std::get<1>(planeInfo);
+		auto normal = std::get<2>(planeInfo);
+		auto color = std::get<3>(planeInfo);
+
+		points->InsertNextPoint(center.data());
+		//scales->InsertNextValue(scale);
+		scales->InsertNextTuple3(scale.x(), scale.y(), scale.z());
+		normals->InsertNextTuple3(normal.x(), normal.y(), normal.z());
+		colors->InsertNextTypedTuple(color.data());
+	}
+
+	points->Modified();
+	planePolyDataMapper->Update();
+
+	planeInfosToDraw.clear();
 }
 
 void VisualDebuggingLayer::DrawSpheres()

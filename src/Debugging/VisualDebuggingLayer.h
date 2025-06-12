@@ -23,6 +23,8 @@ public:
 	
 	void AddTriangle(const Eigen::Vector3f& p0, const Eigen::Vector3f& p1, const Eigen::Vector3f& p2, const Color4& color);
 
+	void AddPlane(const Eigen::Vector3f& center, const Eigen::Vector3f& scale, const Eigen::Vector3f& normal, const Color4& color);
+
 	void AddSphere(const Eigen::Vector3f& center, const Eigen::Vector3f& scale, const Eigen::Vector3f& normal, const Color4& color);
 	
 	void AddCube(const Eigen::Vector3f& center, const Eigen::Vector3f& scale, const Eigen::Vector3f& normal, const Color4& color);
@@ -56,11 +58,16 @@ public:
 	void SetRepresentationTriangles(Representation representation);
 	void ToggleTrianglesRepresentation();
 	
+	void ShowPlanes(bool show);
+	void TogglePlanes();
+	void SetRepresentationPlanes(Representation representation);
+	void TogglePlanesRepresentation();
+
 	void ShowSpheres(bool show);
 	void ToggleSpheres();
 	void SetRepresentationSpheres(Representation representation);
 	void ToggleSpheresRepresentation();
-	
+
 	void ShowCubes(bool show);
 	void ToggleCubes();
 	void SetRepresentationCubes(Representation representation);
@@ -84,6 +91,7 @@ public:
 	inline vtkSmartPointer<vtkActor> GetPointActor() { return pointActor; }
 	inline vtkSmartPointer<vtkActor> GetLineActor() { return lineActor; }
 	inline vtkSmartPointer<vtkActor> GetTriangleActor() { return triangleActor; }
+	inline vtkSmartPointer<vtkActor> GetPlaneActor() { return planeActor; }
 	inline vtkSmartPointer<vtkActor> GetSphereActor() { return sphereActor; }
 	inline vtkSmartPointer<vtkActor> GetCubeActor() { return cubeActor; }
 	inline vtkSmartPointer<vtkActor> GetGlyphActor() { return glyphActor; }
@@ -150,6 +158,10 @@ private:
 	vtkSmartPointer<vtkPolyDataMapper> trianglePolyDataMapper;
 	vtkSmartPointer<vtkPolyData> trianglePolyData;
 
+	vtkSmartPointer<vtkActor> planeActor;
+	vtkSmartPointer<vtkGlyph3DMapper> planePolyDataMapper;
+	vtkSmartPointer<vtkPolyData> planePolyData;
+
 	vtkSmartPointer<vtkActor> sphereActor;
 	vtkSmartPointer<vtkGlyph3DMapper> spherePolyDataMapper;
 	vtkSmartPointer<vtkPolyData> spherePolyData;
@@ -175,6 +187,7 @@ private:
 	void DrawPoints();
 	void DrawLines();
 	void DrawTriangle();
+	void DrawPlane();
 	void DrawSpheres();
 	void DrawCubes();
 	void DrawGlyphs();
@@ -184,6 +197,7 @@ private:
 	vector<std::tuple<Eigen::Vector3f, Color4>> pointInfosToDraw;
 	vector<std::tuple<Eigen::Vector3f, Eigen::Vector3f, Color4>> lineInfosToDraw;
 	vector<std::tuple<Eigen::Vector3f, Eigen::Vector3f, Eigen::Vector3f, Color4>> triangleInfosToDraw;
+	vector<std::tuple<Eigen::Vector3f, Eigen::Vector3f, Eigen::Vector3f, Color4>> planeInfosToDraw;
 	vector<std::tuple<Eigen::Vector3f, Eigen::Vector3f, Eigen::Vector3f, Color4>> sphereInfosToDraw;
 	vector<std::tuple<Eigen::Vector3f, Eigen::Vector3f, Eigen::Vector3f, Color4>> cubeInfosToDraw;
 	vector<std::tuple<Eigen::Vector3f, Eigen::Vector3f, Eigen::Vector3f, Color4>> glyphInfosToDraw;

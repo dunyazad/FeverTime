@@ -1,4 +1,4 @@
-#include <CustomInteractorStyle.h>
+#include <App/CustomInteractorStyle.h>
 
 vtkStandardNewMacro(CustomInteractorStyle);
 

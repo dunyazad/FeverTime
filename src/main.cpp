@@ -438,7 +438,11 @@ int main(int argc, char** argv)
             if (-1 != index)
             {
                 thrust::host_vector<float3> positions(pointCloud.GetPositions());
+                thrust::host_vector<float3> normals(pointCloud.GetNormals());
+                thrust::host_vector<uchar4> colors(pointCloud.GetColors());
                 auto pickedPosition = positions[index];
+                auto pickedNormal = normals[index] ;
+                auto pickedColor = colors[index];
 
                 VisualDebugging::Clear("Picked");
                 VisualDebugging::AddLine("Picked",
@@ -449,11 +453,17 @@ int main(int argc, char** argv)
                         (float)cameraPos[2] + (float)dir[2] * 250.0f
                     }, Color4::White);
 
-                VisualDebugging::AddSphere("Picked",
+                //VisualDebugging::AddSphere("Picked",
+                //    { pickedPosition.x, pickedPosition.y, pickedPosition.z },
+                //    { 0.05f, 0.05f, 0.05f },
+                //    Eigen::Vector3f::UnitZ(),
+                //    Color4::Red);
+
+                VisualDebugging::AddPlane("Picked",
                     { pickedPosition.x, pickedPosition.y, pickedPosition.z },
-                    { 0.05f, 0.05f, 0.05f },
-                    Eigen::Vector3f::UnitZ(),
-                    Color4::Red);
+                    { 0.5f, 0.5f, 0.5f }, 
+                    { pickedNormal.x, pickedNormal.y, pickedNormal.z },
+                    Color4(pickedNormal.x * 255.0f, pickedNormal.y * 255.0f, pickedNormal.z * 255.0f, 255));
 
                 camera->SetFocalPoint(pickedPosition.x, pickedPosition.y, pickedPosition.z);
 
@@ -469,30 +479,6 @@ int main(int argc, char** argv)
         VisualDebugging::AddLine("axes", { 0, 0, 0 }, { 100.0f * 0.5f, 0.0f, 0.0f }, Color4::Red);
         VisualDebugging::AddLine("axes", { 0, 0, 0 }, { 0.0f, 100.0f * 0.5f, 0.0f }, Color4::Green);
         VisualDebugging::AddLine("axes", { 0, 0, 0 }, { 0.0f, 0.0f, 100.0f * 0.5f }, Color4::Blue);
-
-        {
-            auto picker = vtkSmartPointer<vtkPointPicker>::New();
-            app->GetInteractor()->SetPicker(picker);
-
-            auto singleClickPickerCallback = vtkSmartPointer<SingleClickPickerCallback>::New();
-            singleClickPickerCallback->SetDevicePointCloud(&pointCloud);
-            singleClickPickerCallback->SetApp(app);
-
-            app->GetInteractor()->AddObserver(vtkCommand::LeftButtonPressEvent, singleClickPickerCallback);
-
-            auto doubleClickPickerCallback = vtkSmartPointer<DoubleClickPickerCallback>::New();
-            doubleClickPickerCallback->SetDevicePointCloud(&pointCloud);
-            doubleClickPickerCallback->SetApp(app);
-
-            app->GetInteractor()->AddObserver(vtkCommand::LeftButtonPressEvent, doubleClickPickerCallback);
-        }
-
-        {
-            auto keyCallback = vtkSmartPointer<KeyPressCallback>::New();
-            keyCallback->SetApp(app);
-            keyCallback->SetDevicePointCloud(&pointCloud);
-            app->GetInteractor()->AddObserver(vtkCommand::KeyPressEvent, keyCallback);
-        }
 
         app->GetRenderer()->SetBackground(0.3, 0.5, 0.7);
 

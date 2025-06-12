@@ -24,6 +24,8 @@ public:
 
 	static void AddTriangle(const string& layerName, const Eigen::Vector3f& p0, const Eigen::Vector3f& p1, const Eigen::Vector3f& p2, const Color4& color);
 
+	static void AddPlane(const string& layerName, const Eigen::Vector3f& center, const Eigen::Vector3f& scale, const Eigen::Vector3f& normal, const Color4& color);
+
 	static void AddSphere(const string& layerName, const Eigen::Vector3f& center, const Eigen::Vector3f& scale, const Eigen::Vector3f& normal, const Color4& color);
 
 	static void AddCube(const string& layerName, const Eigen::Vector3f& center, const Color4& color);

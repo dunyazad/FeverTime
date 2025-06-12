@@ -1,5 +1,5 @@
-#include <CustomTrackballStyle.h>
-#include <App.h>
+#include <App/CustomTrackballStyle.h>
+#include <App/App.h>
 
 // Implement the New method
 vtkStandardNewMacro(CustomTrackballStyle);

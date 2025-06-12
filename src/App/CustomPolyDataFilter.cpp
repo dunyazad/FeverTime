@@ -1,3 +1,3 @@
-#include <CustomPolyDataFilter.h>
+#include <App/CustomPolyDataFilter.h>
 
 vtkStandardNewMacro(CustomPolyDataFilter);

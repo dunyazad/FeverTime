@@ -1,4 +1,4 @@
-#include <Entity.h>
+#include <App/Entity.h>
 #include <CUDA/PointCloud.cuh>
 
 Entity::Entity(vtkSmartPointer<vtkRenderer> renderer, const string& name)

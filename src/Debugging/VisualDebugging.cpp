@@ -411,6 +411,19 @@ void VisualDebugging::AddTriangle(const string& layerName, const Eigen::Vector3f
 	s_needToRender = true;
 }
 
+void VisualDebugging::AddPlane(const string& layerName, const Eigen::Vector3f& center, const Eigen::Vector3f& scale, const Eigen::Vector3f& normal, const Color4& color)
+{
+	auto layer = GetLayer(layerName);
+	if (nullptr == layer)
+	{
+		layer = CreateLayer(layerName);
+	}
+
+	layer->AddPlane(center, scale, normal, color);
+
+	s_needToRender = true;
+}
+
 void VisualDebugging::AddSphere(const string& layerName, const Eigen::Vector3f& center, const Eigen::Vector3f& scale, const Eigen::Vector3f& normal, const Color4& color)
 {
 	auto layer = GetLayer(layerName);

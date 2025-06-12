@@ -1,6 +1,5 @@
-#include <USBHandler.h>
-
-#include <App.h>
+#include <App/USBHandler.h>
+#include <App/App.h>
 
 #ifdef _WINDOWS
 

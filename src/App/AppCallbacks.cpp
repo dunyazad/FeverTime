@@ -1,70 +1,9 @@
-#include <AppCallbacks.h>
-#include <App.h>
+#include <App/AppCallbacks.h>
+#include <App/App.h>
 
 #include <CUDA/PointCloud.cuh>
 
 #include <Debugging/VisualDebugging.h>
-
-SingleClickPickerCallback* SingleClickPickerCallback::New()
-{
-    return new SingleClickPickerCallback;
-}
-
-void SingleClickPickerCallback::Execute(vtkObject* caller, unsigned long eventId, void* callData)
-{
-    //auto interactor = static_cast<vtkRenderWindowInteractor*>(caller);
-    //auto renderer = app->GetRenderer();
-    //vtkCamera* camera = app->GetRenderer()->GetActiveCamera();
-
-    //int* clickPos = interactor->GetEventPosition();
-
-    //vtkSmartPointer<vtkCoordinate> coordinate = vtkSmartPointer<vtkCoordinate>::New();
-    //coordinate->SetCoordinateSystemToDisplay();
-    //coordinate->SetValue(clickPos[0], clickPos[1], 0.0);
-    //double* world = coordinate->GetComputedWorldValue(renderer);
-
-    //double cameraPos[3];
-    //renderer->GetActiveCamera()->GetPosition(cameraPos);
-
-    //Eigen::Vector3d origin(cameraPos);
-    //Eigen::Vector3d pick(world);
-    //Eigen::Vector3d dir = (pick - origin).normalized();
-
-    //std::cout << "Ray: origin = " << origin.transpose()
-    //    << ", direction = " << dir.transpose() << std::endl;
-
-    //auto index = pointCloud->Pick(
-    //    make_float3(cameraPos[0], cameraPos[1], cameraPos[2]),
-    //    make_float3(dir[0], dir[1], dir[2]));
-
-    //if (-1 != index)
-    //{
-    //    thrust::host_vector<float3> positions(pointCloud->GetPositions());
-    //    auto pickedPosition = positions[index];
-
-    //    VisualDebugging::Clear("Picked");
-    //    VisualDebugging::AddLine("Picked",
-    //        { (float)cameraPos[0], (float)cameraPos[1], (float)cameraPos[2] },
-    //    {
-    //        (float)cameraPos[0] + (float)dir[0] * 250.0f,
-    //        (float)cameraPos[1] + (float)dir[1] * 250.0f,
-    //        (float)cameraPos[2] + (float)dir[2] * 250.0f
-    //    }, Color4::White);
-
-    //    VisualDebugging::AddSphere("Picked",
-    //        { pickedPosition.x, pickedPosition.y, pickedPosition.z },
-    //        { 0.05f, 0.05f, 0.05f },
-    //        Eigen::Vector3f::UnitZ(),
-    //        Color4::Red);
-
-    //    camera->SetFocalPoint(pickedPosition.x, pickedPosition.y, pickedPosition.z);
-
-    //    app->GetActiveEntity()->UpdateColorFromBuffer(pointCloud);
-
-    //    app->GetRenderer()->ResetCameraClippingRange();
-    //    app->GetRenderer()->GetRenderWindow()->Render();
-    //}
-}
 
 DoubleClickPickerCallback* DoubleClickPickerCallback::New()
 {
