@@ -8,5 +8,7 @@ public:
     static CustomInteractorStyle* New();
     vtkTypeMacro(CustomInteractorStyle, vtkInteractorStyleTrackballCamera);
 
+    CustomInteractorStyle();
+
     void OnKeyPress() override;
 };

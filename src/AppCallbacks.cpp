@@ -13,63 +13,56 @@ SingleClickPickerCallback* SingleClickPickerCallback::New()
 void SingleClickPickerCallback::Execute(vtkObject* caller, unsigned long eventId, void* callData)
 {
     auto interactor = static_cast<vtkRenderWindowInteractor*>(caller);
-    auto picker = static_cast<vtkPointPicker*>(interactor->GetPicker());
+    auto renderer = app->GetRenderer();
+    vtkCamera* camera = app->GetRenderer()->GetActiveCamera();
 
-    //auto now = std::chrono::steady_clock::now();
-    //auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - lastClickTime).count();
-    //lastClickTime = now;
+    int* clickPos = interactor->GetEventPosition();
 
-    //if (elapsed > 50 && elapsed < 300) // 감지 기준: 50ms 이상, 300ms 이하
+    vtkSmartPointer<vtkCoordinate> coordinate = vtkSmartPointer<vtkCoordinate>::New();
+    coordinate->SetCoordinateSystemToDisplay();
+    coordinate->SetValue(clickPos[0], clickPos[1], 0.0);
+    double* world = coordinate->GetComputedWorldValue(renderer);
+
+    double cameraPos[3];
+    renderer->GetActiveCamera()->GetPosition(cameraPos);
+
+    Eigen::Vector3d origin(cameraPos);
+    Eigen::Vector3d pick(world);
+    Eigen::Vector3d dir = (pick - origin).normalized();
+
+    std::cout << "Ray: origin = " << origin.transpose()
+        << ", direction = " << dir.transpose() << std::endl;
+
+    auto index = pointCloud->Pick(
+        make_float3(cameraPos[0], cameraPos[1], cameraPos[2]),
+        make_float3(dir[0], dir[1], dir[2]));
+
+    if (-1 != index)
     {
-        //int x, y;
-        //interactor->GetEventPosition(x, y);
-        //if (picker->Pick(x, y, 0, app->GetRenderer()))
-        //{
-        //    vtkIdType pid = picker->GetPointId();
-        //    double* pos = picker->GetPickPosition();
+        thrust::host_vector<float3> positions(pointCloud->GetPositions());
+        auto pickedPosition = positions[index];
 
-        //    if (pid >= 0)
-        //    {
-        //        vtkCamera* camera = app->GetRenderer()->GetActiveCamera();
+        VisualDebugging::Clear("Picked");
+        VisualDebugging::AddLine("Picked",
+            { (float)cameraPos[0], (float)cameraPos[1], (float)cameraPos[2] },
+        {
+            (float)cameraPos[0] + (float)dir[0] * 250.0f,
+            (float)cameraPos[1] + (float)dir[1] * 250.0f,
+            (float)cameraPos[2] + (float)dir[2] * 250.0f
+        }, Color4::White);
 
-        //        double focal[3] = { pos[0], pos[1], pos[2] };
-        //        double position[3];
-        //        double direction[3];
-        //        camera->GetDirectionOfProjection(direction);
-        //        double dist = std::sqrt(vtkMath::Distance2BetweenPoints(camera->GetPosition(), camera->GetFocalPoint()));
+        VisualDebugging::AddSphere("Picked",
+            { pickedPosition.x, pickedPosition.y, pickedPosition.z },
+            { 0.05f, 0.05f, 0.05f },
+            Eigen::Vector3f::UnitZ(),
+            Color4::Red);
 
-        //        for (int i = 0; i < 3; ++i)
-        //            position[i] = focal[i] - direction[i] * dist;
+        camera->SetFocalPoint(pickedPosition.x, pickedPosition.y, pickedPosition.z);
 
-        //        auto index = pointCloud->Pick(
-        //            make_float3(position[0], position[1], position[2]),
-        //            make_float3(direction[0], direction[1], direction[2]));
+        app->GetActiveEntity()->UpdateColorFromBuffer(pointCloud);
 
-        //        thrust::host_vector<float3> positions(pointCloud->GetPositions());
-        //        auto pickedPosition = positions[index];
-
-        //        printf("%d - %f, %f, %f\n", index, pickedPosition.x, pickedPosition.y, pickedPosition.z);
-
-        //        //camera->SetFocalPoint(focal);
-        //        //camera->SetPosition(position);
-
-        //        auto p = Eigen::Vector3f(pickedPosition.x, pickedPosition.y, pickedPosition.z);
-        //        auto dx = Eigen::Vector3f(10.0f * 0.5f, 0.0f, 0.0f);
-        //        auto dy = Eigen::Vector3f(0.0f, 10.0f * 0.5f, 0.0f);
-        //        auto dz = Eigen::Vector3f(0.0f, 0.0f, 10.0f * 0.5f);
-
-        //        VisualDebugging::Clear("Picked");
-        //        VisualDebugging::AddLine("Picked", p, p + dx, Color4::Red);
-        //        VisualDebugging::AddLine("Picked", p, p + dy, Color4::Green);
-        //        VisualDebugging::AddLine("Picked", p, p + dz, Color4::Blue);
-
-
-        //        app->GetActiveEntity()->UpdateColorFromBuffer(pointCloud);
-
-        //        app->GetRenderer()->ResetCameraClippingRange();
-        //        app->GetRenderer()->GetRenderWindow()->Render();
-        //    }
-        //}
+        app->GetRenderer()->ResetCameraClippingRange();
+        app->GetRenderer()->GetRenderWindow()->Render();
     }
 }
 

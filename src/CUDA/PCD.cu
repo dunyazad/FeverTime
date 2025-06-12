@@ -490,8 +490,6 @@ __global__ void Kernel_PickPointWeightedByDepth(
 	float3 rayOrigin,
 	float3 rayDir,           // 정규화된 ray 방향
 	float radiusThreshold,
-	//float minDepth,
-	//float maxDepth,
 	float alpha,  // 수직 거리 가중치
 	float beta,   // depth 가중치
 	int* bestIndex,
@@ -503,8 +501,7 @@ __global__ void Kernel_PickPointWeightedByDepth(
 	float3 p = positions[idx];
 	float3 v = p - rayOrigin;
 
-	float t = dot(v, rayDir);  // depth
-	//if (t < minDepth || t > maxDepth) return;
+	float t = dot(v, rayDir);
 
 	float3 proj = rayOrigin + t * rayDir;
 	float3 offset = p - proj;
@@ -515,9 +512,6 @@ __global__ void Kernel_PickPointWeightedByDepth(
 	//colors[idx].y = 0;
 	//colors[idx].z = 0;
 	//colors[idx].w = 255;
-	
-	//printf("REd\n");
-
 
 	float score = alpha * d_perp + beta * t;
 
@@ -525,6 +519,19 @@ __global__ void Kernel_PickPointWeightedByDepth(
 	if (prev > score) {
 		*bestIndex = idx;
 	}
+}
+
+__global__ void Kernel_ChangePickedColor(
+	float3* positions,
+	float3* normals,
+	uchar4* colors,
+	int numPoints,
+	int* bestIndex)
+{
+	colors[*bestIndex].x = 255;
+	colors[*bestIndex].y = 0;
+	colors[*bestIndex].z = 0;
+	colors[*bestIndex].w = 255;
 }
 
 size_t DevicePointCloud::Pick(float3 rayOrigin, float3 rayDirection)
@@ -552,12 +559,17 @@ size_t DevicePointCloud::Pick(float3 rayOrigin, float3 rayDirection)
 		rayOrigin,
 		rayDirection,
 		5.0f,
-		//0.1f,        // minDepth
-		//5.0f,        // maxDepth
 		alpha,
 		beta,
 		d_closestIndex,
 		d_minDistSq);
+
+	Kernel_ChangePickedColor << < 1, 1 >> > (
+		thrust::raw_pointer_cast(positions.data()),
+		thrust::raw_pointer_cast(normals.data()),
+		thrust::raw_pointer_cast(colors.data()),
+		numberOfElements,
+		d_closestIndex);
 
 	int h_closestIndex = -1;
 	cudaMemcpy(&h_closestIndex, d_closestIndex, sizeof(int), cudaMemcpyDeviceToHost);

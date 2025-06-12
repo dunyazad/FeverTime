@@ -2,6 +2,10 @@
 
 vtkStandardNewMacro(CustomInteractorStyle);
 
+CustomInteractorStyle::CustomInteractorStyle()
+{
+}
+
 void CustomInteractorStyle::OnKeyPress()
 {
     std::string key = this->Interactor->GetKeySym();
