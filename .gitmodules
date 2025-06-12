@@ -11,3 +11,6 @@
 [submodule "ext/uWebSockets"]
 	path = ext/uWebSockets
 	url = https://github.com/uNetworking/uWebSockets.git
+[submodule "ext/hidapi"]
+	path = ext/hidapi
+	url = https://github.com/libusb/hidapi

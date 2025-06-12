@@ -24,6 +24,16 @@ find_package(VTK REQUIRED COMPONENTS
     IOInfovis
 )
 
+IF (WIN32)
+message(STATUS "HDIAPI_INCLUDE_DIRS: ${HDIAPI_INCLUDE_DIRS}")
+# message(STATUS "HDIAPI_LIBRARIES: ${HDIAPI_LIBRARIES}")
+
+set(HDIAPI_DIR "${CMAKE_SOURCE_DIR}/ext/hidapi/build/export_generated")
+find_package(hidapi REQUIRED)
+include_directories(${HDIAPI_INCLUDE_DIRS})
+link_libraries(${HDIAPI_LIBRARIES})
+ENDIF()
+
 # CUDA 설정
 enable_language(CUDA)
 
@@ -41,15 +51,6 @@ set_target_properties(FeverTime PROPERTIES
     CUDA_STANDARD 17
 )
 
-# VTK 연결
-target_link_libraries(FeverTime PRIVATE ${VTK_LIBRARIES})
-
-# VTK 모듈 자동 초기화
-vtk_module_autoinit(
-  TARGETS FeverTime
-  MODULES ${VTK_LIBRARIES}
-)
-
 target_include_directories(FeverTime PRIVATE
     "${CMAKE_SOURCE_DIR}/ext/nvapi510/include"
     "${CMAKE_SOURCE_DIR}/ext/eigen"
@@ -64,8 +65,16 @@ target_link_directories(FeverTime PRIVATE
 )
 
 target_link_libraries(FeverTime PRIVATE
+    ${VTK_LIBRARIES}
     nvapi64
     websockets_static
+    hidapi::hidapi
+)
+
+# VTK 모듈 자동 초기화
+vtk_module_autoinit(
+  TARGETS FeverTime
+  MODULES ${VTK_LIBRARIES}
 )
 
 # 공통 출력 디렉토리 설정

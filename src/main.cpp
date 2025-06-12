@@ -1,6 +1,8 @@
 #pragma warning(disable : 4819)
 
 #include "App.h"
+#include "Entity.h"
+
 #include <CUDA/main.cuh>
 #include <CUDA/PointCloudAlgorithms/PointCloudAlgorithm_Clustering.cuh>
 #include <CUDA/PointCloudAlgorithms/PointCloudAlgorithm_ClusteringFilter.cuh>
@@ -75,36 +77,424 @@ int main(int argc, char** argv)
 
     DevicePointCloud pointCloud;
 
-    app.SetInitializeCallback([&](App& app) {
+    app.AddKeyPressCallback([&](App* app) {
+        auto interactor = app->GetInteractor();
+        std::string key = interactor->GetKeySym();
+
+        std::cout << "[KEY] Pressed: " << key << std::endl;
+
+        if (key == "Escape")
+        {
+            std::cout << "종료" << std::endl;
+            interactor->GetRenderWindow()->Finalize();
+            interactor->TerminateApp();
+        }
+        else if (key == "r")
+        {
+            std::cout << "R 키가 눌렸습니다. 카메라 리셋" << std::endl;
+            if (app->GetRenderer())
+            {
+                app->GetRenderer()->ResetCamera();
+                app->GetRenderer()->GetRenderWindow()->Render();
+            }
+        }
+        else if (key == "grave")
+        {
+            app->GetActiveEntity()->ToggleLighting();
+            app->GetRenderWindow()->Render();
+        }
+        else if (key == "equal")
+        {
+            app->GetActiveEntity()->IncreasePointSize();
+            app->GetRenderWindow()->Render();
+        }
+        else if (key == "minus")
+        {
+            app->GetActiveEntity()->DecreasePointSize();
+            app->GetRenderWindow()->Render();
+        }
+        else if (key == "Tab")
+        {
+            app->GetActiveEntity()->ToggleNormalVisibility();
+            app->GetRenderer()->GetRenderWindow()->Render();
+        }
+        else if (key == "space")
+        {
+            std::cout << "Space 키가 눌렸습니다." << std::endl;
+            app->GetRenderer()->GetRenderWindow()->Render();
+        }
+        else if (key == "Prior")
+        {
+            auto entity = app->GetActiveEntity();
+            if (nullptr != entity)
+            {
+                if ("Clustering" == entity->GetName())
+                {
+                    //auto degree = app->GetClusteringDegree();
+                    //degree += 1.0f;
+
+                    //printf("Clustering Degree : %f = %f\n", degree, degree * M_PI / 180);
+
+                    //app->SetClusteringDegree(degree);
+
+                    //pointCloud->Clustering(degree);
+
+                    //PointCloudBuffers d_tempBuffers;
+                    //d_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), false);
+
+                    //pointCloud->SerializeColoringByLabel(d_tempBuffers);
+
+                    //PointCloudBuffers h_tempBuffers;
+                    //h_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), true);
+                    //d_tempBuffers.CopyTo(h_tempBuffers);
+
+                    //entity->UpdateColorFromBuffer(h_tempBuffers);
+
+                    //d_tempBuffers.Terminate();
+                    //h_tempBuffers.Terminate();
+                }
+                else if ("Clustering Sub" == entity->GetName())
+                {
+                    //auto degree = app->GetClusteringDegree();
+                    //degree += 1.0f;
+
+                    //printf("Clustering Degree : %f = %f\n", degree, degree * M_PI / 180);
+
+                    //app->SetClusteringDegree(degree);
+
+                    //pointCloud->Clustering(degree);
+
+                    //PointCloudBuffers d_tempBuffers;
+                    //d_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), false);
+
+                    //pointCloud->SerializeColoringByLabel(d_tempBuffers);
+
+                    //PointCloudBuffers h_tempBuffers;
+                    //h_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), true);
+                    //d_tempBuffers.CopyTo(h_tempBuffers);
+
+                    //entity->UpdateColorFromBuffer(h_tempBuffers);
+
+                    //d_tempBuffers.Terminate();
+                    //h_tempBuffers.Terminate();
+                }
+                /*
+                else if ("Empty Neighbor Count" == entity->GetName())
+                {
+                    auto threshold = app->GetEmptyNeighborCountThreshold();
+                    threshold += 1;
+
+                    printf("Empty NeighborCountThreshold : %d\n", threshold);
+
+                    app->SetEmptyNeighborCountThreshold(threshold);
+
+                    PointCloudBuffers d_tempBuffers;
+                    d_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), false);
+
+                    pointCloud->SerializeColoringByEmptyNeighborCount(threshold, d_tempBuffers);
+
+                    PointCloudBuffers h_tempBuffers;
+                    h_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), true);
+                    d_tempBuffers.CopyTo(h_tempBuffers);
+
+                    entity->UpdateColorFromBuffer(h_tempBuffers);
+
+                    d_tempBuffers.Terminate();
+                    h_tempBuffers.Terminate();
+                }
+                else if ("Normal Discontinuity" == entity->GetName())
+                {
+                    auto threshold = app->GetNormalDiscontinuityThreshold();
+                    threshold += 1.0f;
+
+                    printf("Normal Discontinuity Threshold : %f = %f\n", threshold, threshold * M_PI / 180);
+
+                    app->SetNormalDiscontinuityThreshold(threshold);
+
+                    pointCloud->ComputeNormalDiscontinuity(threshold);
+
+                    PointCloudBuffers d_tempBuffers;
+                    d_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), false);
+
+                    pointCloud->SerializeColoringByNormalDiscontinuity(d_tempBuffers);
+
+                    PointCloudBuffers h_tempBuffers;
+                    h_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), true);
+                    d_tempBuffers.CopyTo(h_tempBuffers);
+
+                    entity->UpdateColorFromBuffer(h_tempBuffers);
+
+                    d_tempBuffers.Terminate();
+                    h_tempBuffers.Terminate();
+                }
+                else if ("Normal Divergence" == entity->GetName())
+                {
+                    auto threshold = app->GetNormalDivergenceThreshold();
+                    threshold += 0.01f;
+
+                    printf("Normal Divergence Threshold : %f\n", threshold);
+
+                    app->SetNormalDivergenceThreshold(threshold);
+
+                    pointCloud->ComputeNormalDivergence();
+
+                    PointCloudBuffers d_tempBuffers;
+                    d_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), false);
+
+                    pointCloud->SerializeColoringByNormalDivergence(threshold, d_tempBuffers);
+
+                    PointCloudBuffers h_tempBuffers;
+                    h_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), true);
+                    d_tempBuffers.CopyTo(h_tempBuffers);
+
+                    entity->UpdateColorFromBuffer(h_tempBuffers);
+
+                    d_tempBuffers.Terminate();
+                    h_tempBuffers.Terminate();
+                }
+                */
+            }
+
+            app->GetRenderer()->GetRenderWindow()->Render();
+        }
+        else if (key == "Next")
+        {
+            auto entity = app->GetActiveEntity();
+            if (nullptr != entity)
+            {
+                if ("Clustering" == entity->GetName())
+                {
+                    //auto degree = app->GetClusteringDegree();
+                    //degree -= 1.0f;
+
+                    //printf("Clustering Degree : %f = %f\n", degree, degree * M_PI / 180);
+
+                    //app->SetClusteringDegree(degree);
+
+                    //pointCloud->Clustering(degree);
+
+                    //PointCloudBuffers d_tempBuffers;
+                    //d_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), false);
+
+                    //pointCloud->SerializeColoringByLabel(d_tempBuffers);
+
+                    //PointCloudBuffers h_tempBuffers;
+                    //h_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), true);
+                    //d_tempBuffers.CopyTo(h_tempBuffers);
+
+                    //entity->UpdateColorFromBuffer(h_tempBuffers);
+
+                    //d_tempBuffers.Terminate();
+                    //h_tempBuffers.Terminate();
+                }
+                else if ("Clustering Sub" == entity->GetName())
+                {
+                    //auto degree = app->GetClusteringDegree();
+                    //degree -= 1.0f;
+                    
+                    //printf("Clustering Degree : %f = %f\n", degree, degree * M_PI / 180);
+
+                    //app->SetClusteringDegree(degree);
+
+                    //pointCloud->Clustering(degree);
+
+                    //PointCloudBuffers d_tempBuffers;
+                    //d_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), false);
+
+                    //pointCloud->SerializeColoringByLabel(d_tempBuffers);
+
+                    //PointCloudBuffers h_tempBuffers;
+                    //h_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), true);
+                    //d_tempBuffers.CopyTo(h_tempBuffers);
+
+                    //entity->UpdateColorFromBuffer(h_tempBuffers);
+
+                    //d_tempBuffers.Terminate();
+                    //h_tempBuffers.Terminate();
+                }
+                /*
+                else if ("Empty Neighbor Count" == entity->GetName())
+                {
+                    auto threshold = app->GetEmptyNeighborCountThreshold();
+                    threshold -= 1;
+
+                    printf("Empty NeighborCountThreshold : %d\n", threshold);
+
+                    app->SetEmptyNeighborCountThreshold(threshold);
+
+                    PointCloudBuffers d_tempBuffers;
+                    d_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), false);
+
+                    pointCloud->SerializeColoringByEmptyNeighborCount(threshold, d_tempBuffers);
+
+                    PointCloudBuffers h_tempBuffers;
+                    h_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), true);
+                    d_tempBuffers.CopyTo(h_tempBuffers);
+
+                    entity->UpdateColorFromBuffer(h_tempBuffers);
+
+                    d_tempBuffers.Terminate();
+                    h_tempBuffers.Terminate();
+                }
+                else if("Normal Discontinuity" == entity->GetName())
+                {
+                    auto threshold = app->GetNormalDiscontinuityThreshold();
+                    threshold -= 1.0f;
+
+                    printf("Normal Discontinuity Threshold : %f = %f\n", threshold, threshold* M_PI / 180);
+
+                    app->SetNormalDiscontinuityThreshold(threshold);
+
+                    pointCloud->ComputeNormalDiscontinuity(threshold);
+
+                    PointCloudBuffers d_tempBuffers;
+                    d_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), false);
+
+                    pointCloud->SerializeColoringByNormalDiscontinuity(d_tempBuffers);
+
+                    PointCloudBuffers h_tempBuffers;
+                    h_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), true);
+                    d_tempBuffers.CopyTo(h_tempBuffers);
+
+                    entity->UpdateColorFromBuffer(h_tempBuffers);
+
+                    d_tempBuffers.Terminate();
+                    h_tempBuffers.Terminate();
+                }
+                else if ("Normal Divergence" == entity->GetName())
+                {
+                    auto threshold = app->GetNormalDivergenceThreshold();
+                    threshold -= 0.01f;
+
+                    printf("Normal Divergence Threshold : %f\n", threshold);
+
+                    app->SetNormalDivergenceThreshold(threshold);
+
+                    pointCloud->ComputeNormalDivergence();
+
+                    PointCloudBuffers d_tempBuffers;
+                    d_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), false);
+
+                    pointCloud->SerializeColoringByNormalDivergence(threshold, d_tempBuffers);
+
+                    PointCloudBuffers h_tempBuffers;
+                    h_tempBuffers.Initialize(pointCloud->GetNumberOfPoints(), true);
+                    d_tempBuffers.CopyTo(h_tempBuffers);
+
+                    entity->UpdateColorFromBuffer(h_tempBuffers);
+
+                    d_tempBuffers.Terminate();
+                    h_tempBuffers.Terminate();
+                }
+                */
+            }
+
+            app->GetRenderer()->GetRenderWindow()->Render();
+        }
+        else if (key == "Left")
+        {
+            //app->DecreaseActiveEntityIndex();
+            //app->GetRenderer()->GetRenderWindow()->Render();
+        }
+        else if (key == "Right")
+        {
+            //app->IncreaseActiveEntityIndex();
+            //app->GetRenderer()->GetRenderWindow()->Render();
+        }
+        else if (key == "3")
+        {
+            //this->SetAbortFlag(1);
+        }
+    });
+
+    app.AddMouseButtonReleaseCallback([&](App* app, int buttonIndex) {
+        if (0 == buttonIndex)
+        {
+            auto interactor = app->GetInteractor();
+            auto renderer = app->GetRenderer();
+            vtkCamera* camera = app->GetRenderer()->GetActiveCamera();
+
+            int* clickPos = interactor->GetEventPosition();
+
+            vtkSmartPointer<vtkCoordinate> coordinate = vtkSmartPointer<vtkCoordinate>::New();
+            coordinate->SetCoordinateSystemToDisplay();
+            coordinate->SetValue(clickPos[0], clickPos[1], 0.0);
+            double* world = coordinate->GetComputedWorldValue(renderer);
+
+            double cameraPos[3];
+            renderer->GetActiveCamera()->GetPosition(cameraPos);
+
+            Eigen::Vector3d origin(cameraPos);
+            Eigen::Vector3d pick(world);
+            Eigen::Vector3d dir = (pick - origin).normalized();
+
+            std::cout << "Ray: origin = " << origin.transpose()
+                << ", direction = " << dir.transpose() << std::endl;
+
+            auto index = pointCloud.Pick(
+                make_float3(cameraPos[0], cameraPos[1], cameraPos[2]),
+                make_float3(dir[0], dir[1], dir[2]));
+
+            if (-1 != index)
+            {
+                thrust::host_vector<float3> positions(pointCloud.GetPositions());
+                auto pickedPosition = positions[index];
+
+                VisualDebugging::Clear("Picked");
+                VisualDebugging::AddLine("Picked",
+                    { (float)cameraPos[0], (float)cameraPos[1], (float)cameraPos[2] },
+                    {
+                        (float)cameraPos[0] + (float)dir[0] * 250.0f,
+                        (float)cameraPos[1] + (float)dir[1] * 250.0f,
+                        (float)cameraPos[2] + (float)dir[2] * 250.0f
+                    }, Color4::White);
+
+                VisualDebugging::AddSphere("Picked",
+                    { pickedPosition.x, pickedPosition.y, pickedPosition.z },
+                    { 0.05f, 0.05f, 0.05f },
+                    Eigen::Vector3f::UnitZ(),
+                    Color4::Red);
+
+                camera->SetFocalPoint(pickedPosition.x, pickedPosition.y, pickedPosition.z);
+
+                app->GetActiveEntity()->UpdateColorFromBuffer(&pointCloud);
+
+                app->GetRenderer()->ResetCameraClippingRange();
+                app->GetRenderer()->GetRenderWindow()->Render();
+            }
+        }
+        });
+
+    app.AddAppStartCallback([&](App* app) {
         VisualDebugging::AddLine("axes", { 0, 0, 0 }, { 100.0f * 0.5f, 0.0f, 0.0f }, Color4::Red);
         VisualDebugging::AddLine("axes", { 0, 0, 0 }, { 0.0f, 100.0f * 0.5f, 0.0f }, Color4::Green);
         VisualDebugging::AddLine("axes", { 0, 0, 0 }, { 0.0f, 0.0f, 100.0f * 0.5f }, Color4::Blue);
 
         {
             auto picker = vtkSmartPointer<vtkPointPicker>::New();
-            app.GetInteractor()->SetPicker(picker);
+            app->GetInteractor()->SetPicker(picker);
 
             auto singleClickPickerCallback = vtkSmartPointer<SingleClickPickerCallback>::New();
             singleClickPickerCallback->SetDevicePointCloud(&pointCloud);
-            singleClickPickerCallback->SetApp(&app);
+            singleClickPickerCallback->SetApp(app);
 
-            app.GetInteractor()->AddObserver(vtkCommand::LeftButtonPressEvent, singleClickPickerCallback);
+            app->GetInteractor()->AddObserver(vtkCommand::LeftButtonPressEvent, singleClickPickerCallback);
 
             auto doubleClickPickerCallback = vtkSmartPointer<DoubleClickPickerCallback>::New();
             doubleClickPickerCallback->SetDevicePointCloud(&pointCloud);
-            doubleClickPickerCallback->SetApp(&app);
+            doubleClickPickerCallback->SetApp(app);
 
-            app.GetInteractor()->AddObserver(vtkCommand::LeftButtonPressEvent, doubleClickPickerCallback);
+            app->GetInteractor()->AddObserver(vtkCommand::LeftButtonPressEvent, doubleClickPickerCallback);
         }
 
         {
             auto keyCallback = vtkSmartPointer<KeyPressCallback>::New();
-            keyCallback->SetApp(&app);
+            keyCallback->SetApp(app);
             keyCallback->SetDevicePointCloud(&pointCloud);
-            app.GetInteractor()->AddObserver(vtkCommand::KeyPressEvent, keyCallback);
+            app->GetInteractor()->AddObserver(vtkCommand::KeyPressEvent, keyCallback);
         }
 
-        app.GetRenderer()->SetBackground(0.3, 0.5, 0.7);
+        app->GetRenderer()->SetBackground(0.3, 0.5, 0.7);
 
         /*
         {
@@ -210,14 +600,13 @@ int main(int argc, char** argv)
             }
         }
 
-        auto defaultEntity = app.CreateEntity("Default");
+        auto defaultEntity = app->CreateEntity("Default");
         //defaultEntity->FromPointCloud(&pointCloud, roi);
         defaultEntity->FromPointCloud(&pointCloud);
 
-        app.GetRenderer()->ResetCamera();
-        app.GetRenderWindow()->Render();
-
-        
+        app->GetRenderer()->ResetCamera();
+        app->GetRenderWindow()->Render();
+                
         {
             DevicePointCloud pcd;
 
@@ -227,7 +616,7 @@ int main(int argc, char** argv)
 
             algorithm.RunAlgorithm(&pcd);
 
-            auto entity = app.CreateEntity("Find Surface Neighbor");
+            auto entity = app->CreateEntity("Find Surface Neighbor");
             entity->FromPointCloud(&pcd);
 
             entity->SetVisibility(false);
@@ -821,11 +1210,7 @@ int main(int argc, char** argv)
         */
     });
 
-    app.Initialize();
-
     app.Run();
-
-    app.Terminate();
 
     return EXIT_SUCCESS;
 }
