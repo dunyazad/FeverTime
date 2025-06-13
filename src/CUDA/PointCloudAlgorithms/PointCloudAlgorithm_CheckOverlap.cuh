@@ -15,14 +15,14 @@ public:
 	virtual void IncreaseParameter() override;
 	virtual void DecreaseParameter() override;
 
-	inline bool GetApplyColor() const { return applyColor; }
-	inline void SetApplyColor(bool apply) { applyColor = apply; }
-
 	inline int GetStep() const { return step; }
 	inline void SetStep(int step) { this->step = step; }
 
+	inline bool GetRemoveCheckedPoints() { return removeCheckedPoints; }
+	inline void SetRemoveCheckedPoints(bool remove) { removeCheckedPoints = remove; }
+
 private:
-	float angleThreshold = 9.0f;
-	bool applyColor = true;
+	bool removeCheckedPoints = false;
+	float angleThreshold = 90.0f;
 	int step = 3;
 };

@@ -34,137 +34,6 @@ void Entity::Clear()
     normalPolyData = nullptr;
 }
 
-//void Entity::FromPointCloudBuffers(PointCloudBuffers* buffers)
-//{
-//    PointCloudBuffers* host_buffers = nullptr;
-//
-//    if (false == buffers->isHostBuffer)
-//    {
-//        host_buffers = new PointCloudBuffers();
-//        host_buffers->Initialize(buffers->numberOfPoints, true);
-//        buffers->CopyTo(*host_buffers);
-//    }
-//    else
-//    {
-//        host_buffers = buffers;
-//    }
-//
-//    Clear();
-//
-//    assembly = vtkSmartPointer<vtkAssembly>::New();
-//    renderer->AddActor(assembly);
-//
-//    actor = vtkSmartPointer<vtkActor>::New();
-//    mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
-//    polyData = vtkSmartPointer<vtkPolyData>::New();
-//
-//    normalActor = vtkSmartPointer<vtkActor>::New();
-//    normalMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
-//    normalPolyData = vtkSmartPointer<vtkPolyData>::New();
-//
-//    vtkSmartPointer<vtkPoints> points = vtkSmartPointer<vtkPoints>::New();
-//    vtkSmartPointer<vtkFloatArray> normals = vtkSmartPointer<vtkFloatArray>::New();
-//    normals->SetNumberOfComponents(3);
-//    normals->SetName("Normals");
-//
-//    vtkSmartPointer<vtkUnsignedCharArray> colors = vtkSmartPointer<vtkUnsignedCharArray>::New();
-//    colors->SetNumberOfComponents(4);
-//    colors->SetName("Colors");
-//
-//    vtkSmartPointer<vtkPoints> normalLinesPoints = vtkSmartPointer<vtkPoints>::New();
-//    vtkSmartPointer<vtkCellArray> normalLines = vtkSmartPointer<vtkCellArray>::New();
-//    vtkSmartPointer<vtkUnsignedCharArray> normalColors = vtkSmartPointer<vtkUnsignedCharArray>::New();
-//    normalColors->SetNumberOfComponents(4);
-//    normalColors->SetName("Colors");
-//
-//    const size_t numPoints = host_buffers->numberOfPoints;
-//
-//    auto vertices = vtkSmartPointer<vtkCellArray>::New();
-//
-//    for (vtkIdType i = 0; i < numPoints; ++i)
-//    {
-//        const auto& p = host_buffers->positions[i];
-//        const auto& n = host_buffers->normals[i];
-//        const auto& c = host_buffers->colors[i];
-//
-//        points->InsertNextPoint(p.x(), p.y(), p.z());
-//        normals->InsertNextTuple3(n.x(), n.y(), n.z());
-//
-//        unsigned char color[4] = { c.x(), c.y(), c.z(), c.w() };
-//        colors->InsertNextTypedTuple(color);
-//
-//        vtkIdType pid = i;
-//        vertices->InsertNextCell(1, &pid);
-//
-//        double startPoint[3] = { p.x(), p.y(), p.z() };
-//        double endPoint[3] = {
-//            p.x() + n.x() * 0.1,
-//            p.y() + n.y() * 0.1,
-//            p.z() + n.z() * 0.1
-//        };
-//
-//        vtkIdType idStart = normalLinesPoints->InsertNextPoint(startPoint);
-//        vtkIdType idEnd = normalLinesPoints->InsertNextPoint(endPoint);
-//
-//        vtkSmartPointer<vtkLine> line = vtkSmartPointer<vtkLine>::New();
-//        line->GetPointIds()->SetId(0, idStart);
-//        line->GetPointIds()->SetId(1, idEnd);
-//
-//        normalLines->InsertNextCell(line);
-//
-//        unsigned char endColor[4] = {
-//            static_cast<unsigned char>((n.x() * 0.5f + 0.5f) * 255),
-//            static_cast<unsigned char>((n.y() * 0.5f + 0.5f) * 255),
-//            static_cast<unsigned char>((n.z() * 0.5f + 0.5f) * 255),
-//            255
-//        };
-//        normalColors->InsertNextTypedTuple(color);
-//        normalColors->InsertNextTypedTuple(endColor);
-//    }
-//
-//    polyData->SetPoints(points);
-//    polyData->SetVerts(vertices);
-//    polyData->GetPointData()->SetScalars(colors);
-//    polyData->GetPointData()->SetNormals(normals);
-//
-//    mapper->SetInputData(polyData);
-//    mapper->SetScalarModeToUsePointData();
-//    mapper->SetColorModeToDirectScalars();
-//    mapper->SetScalarVisibility(true);
-//
-//    actor->SetMapper(mapper);
-//    actor->GetProperty()->SetPointSize(2.0f);
-//    actor->GetProperty()->SetRepresentationToPoints();
-//    actor->GetProperty()->SetLighting(true);
-//
-//    assembly->AddPart(actor);
-//
-//    normalPolyData->SetPoints(normalLinesPoints);
-//    normalPolyData->SetLines(normalLines);
-//    normalPolyData->GetPointData()->SetScalars(normalColors);
-//
-//    normalMapper->SetInputData(normalPolyData);
-//    normalMapper->SetScalarModeToUsePointData();
-//    normalMapper->SetColorModeToDirectScalars();
-//    normalMapper->SetScalarVisibility(true);
-//
-//    normalActor->SetMapper(normalMapper);
-//    normalActor->GetProperty()->SetLineWidth(2.0f);
-//
-//    normalActor->SetVisibility(false);
-//
-//    assembly->AddPart(normalActor);
-//
-//    assembly->SetVisibility(false);
-//
-//    if (false == buffers->isHostBuffer)
-//    {
-//        host_buffers->Terminate();
-//
-//        delete host_buffers;
-//    }
-//}
-
 void Entity::FromPointCloud(DevicePointCloud* pointCloud)
 {
     Clear();
@@ -199,15 +68,24 @@ void Entity::FromPointCloud(DevicePointCloud* pointCloud)
 
     auto vertices = vtkSmartPointer<vtkCellArray>::New();
 
-    thrust::host_vector<float3> h_positions(pointCloud->GetPositions());
-    thrust::host_vector<float3> h_normals(pointCloud->GetNormals());
-    thrust::host_vector<uchar4> h_colors(pointCloud->GetColors());
+    thrust::host_vector<float3> h_positions(numPoints);
+    thrust::copy(pointCloud->GetPositions().begin(), pointCloud->GetPositions().end(), h_positions.begin());
+
+    thrust::host_vector<float3> h_normals(numPoints);
+    thrust::copy(pointCloud->GetNormals().begin(), pointCloud->GetNormals().end(), h_normals.begin());
+
+    thrust::host_vector<uchar4> h_colors(numPoints);
+    thrust::copy(pointCloud->GetColors().begin(), pointCloud->GetColors().end(), h_colors.begin());
 
     for (vtkIdType i = 0; i < numPoints; ++i)
     {
         auto& p = h_positions[i];
         auto& n = h_normals[i];
         auto& c = h_colors[i];
+
+        if (FLT_MAX == p.x) p.x = 0.0f;
+        if (FLT_MAX == p.y) p.y = 0.0f;
+        if (FLT_MAX == p.z) p.z = 0.0f;
 
         points->InsertNextPoint(p.x, p.y, p.z);
         normals->InsertNextTuple3(n.x, n.y, n.z);
@@ -316,15 +194,24 @@ void Entity::FromPointCloud(DevicePointCloud* pointCloud, const Eigen::AlignedBo
 
     int skipCount = 0;
 
-    thrust::host_vector<float3> h_positions(pointCloud->GetPositions());
-    thrust::host_vector<float3> h_normals(pointCloud->GetNormals());
-    thrust::host_vector<uchar4> h_colors(pointCloud->GetColors());
+    thrust::host_vector<float3> h_positions(numPoints);
+    thrust::copy(pointCloud->GetPositions().begin(), pointCloud->GetPositions().end(), h_positions.begin());
+
+    thrust::host_vector<float3> h_normals(numPoints);
+    thrust::copy(pointCloud->GetNormals().begin(), pointCloud->GetNormals().end(), h_normals.begin());
+
+    thrust::host_vector<uchar4> h_colors(numPoints);
+    thrust::copy(pointCloud->GetColors().begin(), pointCloud->GetColors().end(), h_colors.begin());
 
     for (vtkIdType i = 0; i < numPoints; ++i)
     {
-        const auto& p = h_positions[i];
-        const auto& n = h_normals[i];
-        const auto& c = h_colors[i];
+        auto& p = h_positions[i];
+        auto& n = h_normals[i];
+        auto& c = h_colors[i];
+
+        if (FLT_MAX == p.x) p.x = 0.0f;
+        if (FLT_MAX == p.y) p.y = 0.0f;
+        if (FLT_MAX == p.z) p.z = 0.0f;
 
         if (false == roi.contains(Eigen::Vector3f(p.x, p.y, p.z)))
         {

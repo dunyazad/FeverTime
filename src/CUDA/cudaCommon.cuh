@@ -129,12 +129,27 @@ struct PointPNC
 	float3 color;
 };
 
-__host__ __device__ float3 operator-(const float3& a, const float3& b);
 __host__ __device__ float3 operator+(const float3& a, const float3& b);
+__host__ __device__ float3& operator+=(float3& a, const float3& b);
+
+__host__ __device__ float3 operator-(const float3& a, const float3& b);
+__host__ __device__ float3& operator-=(float3& a, const float3& b);
+
 __host__ __device__ float3 operator*(const float3& a, float b);
+__host__ __device__ float3& operator*=(float3& a, float b);
 __host__ __device__ float3 operator*(float b, const float3& a);
+__host__ __device__ float3& operator*=(float b, float3& a);
+
+__host__ __device__ float3 operator/(const float3& a, float b);
+__host__ __device__ float3& operator/=(float3& a, float b);
+__host__ __device__ float3 operator/(float b, const float3& a);
+__host__ __device__ float3& operator/=(float b, float3& a);
+
 __host__ __device__ float dot(const float3& a, const float3& b);
 __host__ __device__ float3 cross(const float3& a, const float3& b);
+__host__ __device__ float length(const float3& v);
+__host__ __device__ float lengthSquared(const float3& v);
+__host__ __device__ float3 normalize(const float3& v);
 
 __device__ __host__ float hashToFloat(uint32_t seed);
 __device__ __host__ size_t voxel_hash(int3 coord, size_t tableSize);

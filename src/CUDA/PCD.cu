@@ -134,7 +134,8 @@ void DevicePointCloud::Compact()
 	auto is_invalid = [] __device__(const TupleType & t)
 	{
 		const float3& p = thrust::get<0>(t);
-		return (FLT_MAX == p.x && FLT_MAX == p.y && FLT_MAX == p.z);
+		return !isfinite(p.x) || !isfinite(p.y) || !isfinite(p.z) ||
+			p.x == FLT_MAX || p.y == FLT_MAX || p.z == FLT_MAX;
 	};
 
 	DeviceZipIter zip_begin = thrust::make_zip_iterator(thrust::make_tuple(

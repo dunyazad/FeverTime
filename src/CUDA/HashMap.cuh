@@ -15,6 +15,7 @@ struct HashMapVoxel
     unsigned int label = 0;
     unsigned int subLabel = 0;
     Eigen::Vector3f position = Eigen::Vector3f(0.0f, 0.0f, 0.0f);
+    Eigen::Vector3f positionToMove = Eigen::Vector3f(0.0f, 0.0f, 0.0f);
     Eigen::Vector3f normal = Eigen::Vector3f(0.0f, 0.0f, 0.0f);
     Eigen::Vector4b color = Eigen::Vector4b(255, 255, 255, 255);
     float divergence = 0.0f;

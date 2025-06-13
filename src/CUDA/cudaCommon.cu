@@ -1,13 +1,23 @@
 #include <CUDA/cudaCommon.cuh>
 
-__host__ __device__ float3 operator-(const float3& a, const float3& b)
-{
-    return make_float3(a.x - b.x, a.y - b.y, a.z - b.z);
-}
-
 __host__ __device__ float3 operator+(const float3& a, const float3& b)
 {
     return make_float3(a.x + b.x, a.y + b.y, a.z + b.z);
+}
+
+__host__ __device__ float3& operator+=(float3& a, const float3& b)
+{
+	a.x += b.x;  a.y += b.y;  a.z += b.z;  return a;
+}
+
+__host__ __device__ float3 operator-(const float3& a, const float3& b)
+{
+	return make_float3(a.x - b.x, a.y - b.y, a.z - b.z);
+}
+
+__host__ __device__ float3& operator-=(float3& a, const float3& b)
+{
+	a.x -= b.x;  a.y -= b.y;  a.z -= b.z;  return a;
 }
 
 __host__ __device__ float3 operator*(const float3& a, float b)
@@ -15,9 +25,39 @@ __host__ __device__ float3 operator*(const float3& a, float b)
     return make_float3(a.x * b, a.y * b, a.z * b);
 }
 
+__host__ __device__ float3& operator*=(float3& a, float b)
+{
+	a.x *= b;  a.y *= b;  a.z *= b;  return a;
+}
+
 __host__ __device__ float3 operator*(float b, const float3& a)
 {
-    return a * b;
+	return make_float3(a.x * b, a.y * b, a.z * b);
+}
+
+__host__ __device__ float3& operator*=(float b, float3& a)
+{
+	a.x *= b;  a.y *= b;  a.z *= b;  return a;
+}
+
+__host__ __device__ float3 operator/(const float3& a, float b)
+{
+	return make_float3(a.x / b, a.y / b, a.z / b);
+}
+
+__host__ __device__ float3& operator/=(float3& a, float b)
+{
+	a.x /= b;  a.y /= b;  a.z /= b;  return a;
+}
+
+__host__ __device__ float3 operator/(float b, const float3& a)
+{
+	return make_float3(a.x / b, a.y / b, a.z / b);
+}
+
+__host__ __device__ float3& operator/=(float b, float3& a)
+{
+	a.x /= b;  a.y /= b;  a.z /= b;  return a;
 }
 
 __host__ __device__ float dot(const float3& a, const float3& b)
@@ -32,6 +72,25 @@ __host__ __device__ float3 cross(const float3& a, const float3& b)
 		a.z * b.x - a.x * b.z,
 		a.x * b.y - a.y * b.x
 	);
+}
+
+__host__ __device__ float length(const float3& v)
+{
+	return sqrtf(v.x * v.x + v.y * v.y + v.z * v.z);
+}
+
+__host__ __device__ float lengthSquared(const float3& v)
+{
+	return v.x * v.x + v.y * v.y + v.z * v.z;
+}
+
+__host__ __device__ float3 normalize(const float3& v)
+{
+	float len = length(v);
+	if (len > 0.f)
+		return make_float3(v.x / len, v.y / len, v.z / len);
+	else
+		return make_float3(0.f, 0.f, 0.f);  // 또는 처리 방식 선택
 }
 
 __device__ __host__ float hashToFloat(uint32_t seed)

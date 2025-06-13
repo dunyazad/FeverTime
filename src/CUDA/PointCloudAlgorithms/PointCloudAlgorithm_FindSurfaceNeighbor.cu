@@ -397,6 +397,7 @@ __global__ void Kernel_CheckNeighbor(HashMapInfo info, float3* positions, float3
 		if (dp < COS_ANGLE_THRESHOLD)
 		{
 			colors[idx] = make_uchar4(255, 0, 0, 255);
+			positions[idx] = make_float3(FLT_MAX, FLT_MAX, FLT_MAX);
 			return;
 		}
 	}

@@ -8,6 +8,8 @@
 #include <CUDA/PointCloudAlgorithms/PointCloudAlgorithm_ClusteringFilter.cuh>
 #include <CUDA/PointCloudAlgorithms/PointCloudAlgorithm_CheckOverlap.cuh>
 #include <CUDA/PointCloudAlgorithms/PointCloudAlgorithm_FindSurfaceNeighbor.cuh>
+#include <CUDA/PointCloudAlgorithms/PointCloudAlgorithm_Laplacian.cuh>
+#include <CUDA/PointCloudAlgorithms/PointCloudAlgorithm_NormalSimilarity.cuh>
 #include <CUDA/PointCloudAlgorithms/PointCloudAlgorithm_Smoothing.cuh>
 
 #include <Debugging/VisualDebugging.h>
@@ -48,7 +50,7 @@ void findTopTwo(const map<uint3, unsigned int>& colorHistogram) {
 }
 
 
-//const string resource_file_name = "Compound_Full";
+//const string resource_file_name = "Tooth";
 const string resource_file_name = "BasePoints";
 const string resource_file_name_ply = "../../res/3D/" + resource_file_name + ".ply";
 const string resource_file_name_alp = "../../res/3D/" + resource_file_name + ".alp";
@@ -595,7 +597,8 @@ int main(int argc, char** argv)
 
         app->GetRenderer()->ResetCamera();
         app->GetRenderWindow()->Render();
-                
+        
+        /*
         {
             DevicePointCloud pcd;
 
@@ -604,6 +607,8 @@ int main(int argc, char** argv)
             PointCloudAlgorithm_FindSurfaceNeighbor algorithm;
 
             algorithm.RunAlgorithm(&pcd);
+
+            pcd.Compact();
 
             auto entity = app->CreateEntity("Find Surface Neighbor");
             entity->FromPointCloud(&pcd);
@@ -621,13 +626,92 @@ int main(int argc, char** argv)
             //pcd.SaveToPLY("C:\\Resources\\Debug\\Test.ply");
             //pcd.SaveToALP(resource_file_name_alp);
         }
-        
+        */
 
+        //{
+        //    DevicePointCloud pcd;
+
+        //    pcd.LoadFromALP(resource_file_name_alp);
+
+        //    {
+        //        PointCloudAlgorithm_ClusteringFilter algorithm;
+        //        algorithm.RunAlgorithm(&pcd);
+        //    }
+
+        //    auto entity = app->CreateEntity("Clustering");
+        //    entity->FromPointCloud(&pcd);
+
+        //    entity->SetVisibility(false);
+        //}
+
+        //{
+        //    DevicePointCloud pcd;
+
+        //    pcd.LoadFromALP(resource_file_name_alp);
+
+        //    {
+        //        PointCloudAlgorithm_CheckOverlap algorithm;
+        //        algorithm.SetStep(3);
+        //        algorithm.SetRemoveCheckedPoints(false);
+        //        algorithm.RunAlgorithm(&pcd);
+        //    }
+
+        //    auto entity = app->CreateEntity("Check Overlap");
+        //    entity->FromPointCloud(&pcd);
+
+        //    entity->SetVisibility(false);
+        //}
+
+        {
+            DevicePointCloud pcd;
+
+            pcd.LoadFromALP(resource_file_name_alp);
+
+            {
+                PointCloudAlgorithm_CheckOverlap algorithm;
+                algorithm.SetStep(7);
+                algorithm.SetRemoveCheckedPoints(true);
+                algorithm.RunAlgorithm(&pcd);
+            }
+            {
+                PointCloudAlgorithm_NormalSimilarity algorithm;
+                algorithm.SetRemoveCheckedPoints(true);
+
+                algorithm.RunAlgorithm(&pcd);
+            }
+            {
+                PointCloudAlgorithm_ClusteringFilter algorithm;
+                algorithm.RunAlgorithm(&pcd);
+            }
+
+            auto entity = app->CreateEntity("Cleaning");
+            entity->FromPointCloud(&pcd);
+
+            entity->SetVisibility(false);
+        }
+
+        return;
         
         {
             DevicePointCloud pcd;
 
             pcd.LoadFromALP(resource_file_name_alp);
+
+            //PointCloudAlgorithm_CheckOverlap algorithm;
+
+            //algorithm.RunAlgorithm(&pcd);
+
+            //algorithm.SetStep(5);
+            //algorithm.RunAlgorithm(&pcd);
+
+            //algorithm.SetStep(10);
+            //algorithm.RunAlgorithm(&pcd);
+
+            //algorithm.SetStep(30);
+            //algorithm.RunAlgorithm(&pcd);
+
+            //algorithm.SetStep(50);
+            //algorithm.RunAlgorithm(&pcd);
 
             PointCloudAlgorithm_ClusteringFilter clusteringFilter;
 
@@ -635,11 +719,33 @@ int main(int argc, char** argv)
 
             pcd.Compact();
 
-            auto entity = app->CreateEntity("Clustering Filter");
+            auto entity = app->CreateEntity("Check Overlap");
             entity->FromPointCloud(&pcd);
 
             entity->SetVisibility(false);
         }
+        
+        
+        //{
+        //    DevicePointCloud pcd;
+
+        //    pcd.LoadFromALP(resource_file_name_alp);
+
+        //    PointCloudAlgorithm_FindSurfaceNeighbor algorithm;
+
+        //    algorithm.RunAlgorithm(&pcd);
+
+        //    PointCloudAlgorithm_ClusteringFilter clusteringFilter;
+
+        //    clusteringFilter.RunAlgorithm(&pcd);
+
+        //    pcd.Compact();
+
+        //    auto entity = app->CreateEntity("Clustering Filter");
+        //    entity->FromPointCloud(&pcd);
+
+        //    entity->SetVisibility(false);
+        //}
         
 
         /*
