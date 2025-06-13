@@ -342,6 +342,9 @@ bool DevicePointCloud::SaveToPLY(const string& filename)
 	for (size_t i = 0; i < numberOfElements; i++)
 	{
 		auto& p = h_positions[i];
+
+		if (FLT_MAX == p.x || FLT_MAX == p.y || FLT_MAX == p.z) continue;
+
 		auto& n = h_normals[i];
 		auto& c = h_colors[i];
 	
@@ -503,6 +506,7 @@ __global__ void Kernel_PickPointWeightedByDepth(
 	float3 v = p - rayOrigin;
 
 	float t = dot(v, rayDir);
+	if (t < 0) return;
 
 	float3 proj = rayOrigin + t * rayDir;
 	float3 offset = p - proj;

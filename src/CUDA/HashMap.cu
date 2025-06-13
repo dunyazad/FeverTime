@@ -55,10 +55,7 @@ __device__ size_t InsertHashMapVoxel(HashMapInfo& info, int3 coord)
 			voxel->neighborCount = 0;
 			voxel->emptyNeighborCount = 0;
 			voxel->normal = Eigen::Vector3f::Zero();
-			voxel->gradient = Eigen::Vector3f::Zero();
 			voxel->divergence = 0.0f;
-			voxel->colorDistance = 0.0f;
-			voxel->normalDiscontinue = 0;
 			voxel->color = Eigen::Vector4b(255, 255, 255, 255);
 			voxel->deleted = 0;
 

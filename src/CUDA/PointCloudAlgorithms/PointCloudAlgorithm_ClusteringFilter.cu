@@ -143,7 +143,8 @@ __global__ void Kernel_SerializeFilteringColoringByLabel(
 	float3* normals,
 	uchar4* colors,
 	size_t numberOfPoints,
-	bool applyColor)
+	bool applyColor,
+	bool removeCheckedPoints)
 {
 	int idx = blockIdx.x * blockDim.x + threadIdx.x;
 	if (idx >= numberOfPoints) return;
@@ -178,11 +179,14 @@ __global__ void Kernel_SerializeFilteringColoringByLabel(
 
 		auto labelCount = info.labelCounter.GetCount(voxel->label);
 		
-		if (20000 > labelCount)
+		if (removeCheckedPoints)
 		{
-			positions[idx].x = FLT_MAX;
-			positions[idx].y = FLT_MAX;
-			positions[idx].z = FLT_MAX;
+			if (20000 > labelCount)
+			{
+				positions[idx].x = FLT_MAX;
+				positions[idx].y = FLT_MAX;
+				positions[idx].z = FLT_MAX;
+			}
 		}
 
 		//{
@@ -210,11 +214,21 @@ void PointCloudAlgorithm_ClusteringFilter::RunAlgorithm(DevicePointCloud* pointC
 		cudaDeviceSynchronize();
 	}
 
+	if(0 == mergeMode)
 	{
 		unsigned int blockSize = 256;
 		unsigned int gridOccupied = (numberOfOccupiedVoxels + blockSize - 1) / blockSize;
 
 		Kernel_InterVoxelHashMerge26Way << <gridOccupied, blockSize >> > (pointCloud->GetHashMap().info, angleThreshold);
+
+		cudaDeviceSynchronize();
+	}
+	else if(1 == mergeMode)
+	{
+		unsigned int blockSize = 256;
+		unsigned int gridOccupied = (numberOfOccupiedVoxels + blockSize - 1) / blockSize;
+
+		Kernel_InterVoxelHashMerge6Way << <gridOccupied, blockSize >> > (pointCloud->GetHashMap().info, angleThreshold);
 
 		cudaDeviceSynchronize();
 	}
@@ -241,7 +255,7 @@ void PointCloudAlgorithm_ClusteringFilter::RunAlgorithm(DevicePointCloud* pointC
 		auto colors = thrust::raw_pointer_cast(pointCloud->GetColors().data());
 
 		Kernel_SerializeFilteringColoringByLabel << <gridOccupied, blockSize >> > (
-			pointCloud->GetHashMap().info, positions, normals, colors, numberOfPoints, applyColor);
+			pointCloud->GetHashMap().info, positions, normals, colors, numberOfPoints, applyColor, removeCheckedPoints);
 
 		cudaDeviceSynchronize();
 	}

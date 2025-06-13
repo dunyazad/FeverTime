@@ -22,10 +22,9 @@ struct HashMapVoxel
     unsigned int pointCount = 0;
     unsigned int neighborCount = 0;
     unsigned int emptyNeighborCount = 0;
-    Eigen::Vector3f gradient = Eigen::Vector3f(0.0f, 0.0f, 0.0f);
-    float colorDistance = 0.0f;
-    uint8_t normalDiscontinue = 0;
     float sdf = 0.0f;
+    float sdfSum = 0.0f;
+    float weightSum = 0.0f;
 };
 
 struct HashMapInfo

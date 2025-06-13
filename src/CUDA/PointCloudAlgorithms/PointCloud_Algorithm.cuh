@@ -29,6 +29,7 @@ __device__ __forceinline__ void UnionVoxel(HashMapInfo info, unsigned int a, uns
 __device__ __forceinline__ void UnionVoxelSub(HashMapInfo info, unsigned int a, unsigned int b);
 
 __global__ void Kernel_ClearLabels(HashMapInfo info);
+__global__ void Kernel_InterVoxelHashMerge6Way(HashMapInfo info, float normalDegreeThreshold);
 __global__ void Kernel_InterVoxelHashMerge26Way(HashMapInfo info, float normalDegreeThreshold);
 __global__ void Kernel_CompressVoxelHashLabels(HashMapInfo info);
 __global__ void Kernel_GetLabels(HashMapInfo info, Eigen::Vector3f* points, uint3* labels, unsigned int numberOfPoints);

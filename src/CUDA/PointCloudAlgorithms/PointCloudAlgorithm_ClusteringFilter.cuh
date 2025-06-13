@@ -14,10 +14,18 @@ public:
 	virtual void IncreaseParameter() override;
 	virtual void DecreaseParameter() override;
 
+	inline bool GetRemoveCheckedPoints() { return removeCheckedPoints; }
+	inline void SetRemoveCheckedPoints(bool remove) { removeCheckedPoints = remove; }
+
 	inline bool GetApplyColor() const { return applyColor; }
 	inline void SetApplyColor(bool apply) { applyColor = apply; }
 
+	inline int GetMergeMode() const { return mergeMode; }
+	inline void SetMergeMode(int mode) { mergeMode = mode; }
+
 private:
 	float angleThreshold = 25.0f;
-	bool applyColor = true;
+	bool removeCheckedPoints = false;
+	bool applyColor = false;
+	int mergeMode = 0;
 };

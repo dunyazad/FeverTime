@@ -1,5 +1,56 @@
 #include <CUDA/cudaCommon.cuh>
 
+namespace Time
+{
+	chrono::steady_clock::time_point Now()
+	{
+		return chrono::high_resolution_clock::now();
+	}
+
+	uint64_t Microseconds(chrono::steady_clock::time_point& from, chrono::steady_clock::time_point& now)
+	{
+		return std::chrono::duration_cast<std::chrono::microseconds>(now - from).count();
+	}
+
+	chrono::steady_clock::time_point End(chrono::steady_clock::time_point& from, const string& message, int number)
+	{
+		auto now = chrono::high_resolution_clock::now();
+		if (-1 == number)
+		{
+			printf("[%s] %.4f ms from start\n", message.c_str(), (float)(Microseconds(from, now)) / 1000.0f);
+		}
+		else
+		{
+			printf("[%6d - %s] %.4f ms from start\n", number, message.c_str(), (float)(Microseconds(from, now)) / 1000.0f);
+		}
+		return now;
+	}
+
+	string DateTime()
+	{
+		auto t = std::time(nullptr);
+		auto tm = *std::localtime(&t);
+
+		std::ostringstream oss;
+		oss << std::put_time(&tm, "%Y%m%d_%H%M%S"); // Format: YYYYMMDD_HHMMSS
+		return oss.str();
+	}
+}
+
+string Miliseconds(const chrono::steady_clock::time_point beginTime, const char* tag)
+{
+	auto now = chrono::high_resolution_clock::now();
+	auto timeSpan = chrono::duration_cast<chrono::nanoseconds>(now - beginTime).count();
+	stringstream ss;
+	ss << "[[[ ";
+	if (nullptr != tag)
+	{
+		ss << tag << " - ";
+	}
+	ss << (float)timeSpan / 1000000.0 << " ms ]]]";
+	return ss.str();
+}
+
 __host__ __device__ float3 operator+(const float3& a, const float3& b)
 {
     return make_float3(a.x + b.x, a.y + b.y, a.z + b.z);

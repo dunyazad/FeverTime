@@ -20,7 +20,26 @@ namespace Eigen
 #define alog(...) printf("\033[38;5;1m\033[48;5;15m(^(OO)^) /V/\033[0m\t" __VA_ARGS__)
 #define alogt(tag, ...) printf("\033[38;5;1m\033[48;5;15m [%d] (^(OO)^) /V/\033[0m\t" tag, __VA_ARGS__)
 
+namespace Time
+{
+	chrono::steady_clock::time_point Now();
+
+	uint64_t Microseconds(chrono::steady_clock::time_point& from, chrono::steady_clock::time_point& now);
+
+	chrono::steady_clock::time_point End(chrono::steady_clock::time_point& from, const string& message = "", int number = -1);
+
+	string DateTime();
+}
+
+string Miliseconds(const chrono::steady_clock::time_point beginTime, const char* tag = nullptr);
+#define TS(name) auto time_##name = chrono::high_resolution_clock::now();
+#define TE(name) std::cout << Miliseconds(time_##name, #name) << std::endl;
+
 #define CUDART_PI_F 3.1415927f
+
+__device__ __constant__ const int3 neighbor_offsets_6[6] = {
+	{1,0,0}, {-1,0,0}, {0,1,0}, {0,-1,0}, {0,0,1}, {0,0,-1}
+};
 
 __device__ __constant__ const int3 neighbor_offsets_26[26] = {
 	{1,0,0}, {-1,0,0}, {0,1,0}, {0,-1,0}, {0,0,1}, {0,0,-1},

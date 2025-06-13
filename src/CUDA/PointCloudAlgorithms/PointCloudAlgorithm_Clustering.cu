@@ -93,6 +93,47 @@ __global__ void Kernel_ClearLabels(HashMapInfo info)
 	voxel->subLabel = slot;
 }
 
+__global__ void Kernel_InterVoxelHashMerge6Way(HashMapInfo info, float normalDegreeThreshold)
+{
+	unsigned int threadid = blockDim.x * blockIdx.x + threadIdx.x;
+	if (threadid >= *info.d_numberOfOccupiedVoxels) return;
+
+	int3 coord = info.d_occupiedVoxelIndices[threadid];
+	size_t slot = GetHashMapVoxelSlot(info, coord);
+	if (INVALID_VOXEL_SLOT == slot) return;
+
+	HashMapVoxel* centerVoxel = GetHashMapVoxel(info, slot);
+	//if (centerVoxel == nullptr || centerVoxel->label == 0) return;
+	if (INVALID_VOXEL == centerVoxel) return;
+
+	if (18 <= centerVoxel->emptyNeighborCount) return;
+
+	auto centerNormal = (centerVoxel->normal / (float)centerVoxel->pointCount).normalized();
+
+#pragma unroll
+	for (int ni = 0; ni < 6; ++ni)
+	{
+		int3 neighborCoord = make_int3(
+			coord.x + neighbor_offsets_6[ni].x,
+			coord.y + neighbor_offsets_6[ni].y,
+			coord.z + neighbor_offsets_6[ni].z);
+
+		size_t neighborSlot = GetHashMapVoxelSlot(info, neighborCoord);
+		HashMapVoxel* neighborVoxel = GetHashMapVoxel(info, neighborSlot);
+
+		//if (neighborVoxel && neighborVoxel->label != 0)
+		if (neighborVoxel)
+		{
+			UnionVoxelSub(info, slot, neighborSlot);
+
+			auto neighborNormal = (neighborVoxel->normal / (float)neighborVoxel->pointCount).normalized();
+			if (normalDegreeThreshold * M_PI / 180.f < acosf(centerNormal.dot(neighborNormal))) continue;
+
+			UnionVoxel(info, slot, neighborSlot);
+		}
+	}
+}
+
 __global__ void Kernel_InterVoxelHashMerge26Way(HashMapInfo info, float normalDegreeThreshold)
 {
 	unsigned int threadid = blockDim.x * blockIdx.x + threadIdx.x;

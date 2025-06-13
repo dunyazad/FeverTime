@@ -628,21 +628,21 @@ int main(int argc, char** argv)
         }
         */
 
-        //{
-        //    DevicePointCloud pcd;
+        {
+            DevicePointCloud pcd;
 
-        //    pcd.LoadFromALP(resource_file_name_alp);
+            pcd.LoadFromALP(resource_file_name_alp);
 
-        //    {
-        //        PointCloudAlgorithm_ClusteringFilter algorithm;
-        //        algorithm.RunAlgorithm(&pcd);
-        //    }
+            {
+                PointCloudAlgorithm_ClusteringFilter algorithm;
+                algorithm.RunAlgorithm(&pcd);
+            }
 
-        //    auto entity = app->CreateEntity("Clustering");
-        //    entity->FromPointCloud(&pcd);
+            auto entity = app->CreateEntity("Clustering");
+            entity->FromPointCloud(&pcd);
 
-        //    entity->SetVisibility(false);
-        //}
+            entity->SetVisibility(false);
+        }
 
         //{
         //    DevicePointCloud pcd;
@@ -667,6 +667,13 @@ int main(int argc, char** argv)
 
             pcd.LoadFromALP(resource_file_name_alp);
 
+            TS(Cleaning);
+            {
+                PointCloudAlgorithm_ClusteringFilter algorithm;
+                algorithm.SetApplyColor(false);
+                algorithm.SetRemoveCheckedPoints(true);
+                algorithm.RunAlgorithm(&pcd);
+            }
             {
                 PointCloudAlgorithm_CheckOverlap algorithm;
                 algorithm.SetStep(7);
@@ -681,8 +688,13 @@ int main(int argc, char** argv)
             }
             {
                 PointCloudAlgorithm_ClusteringFilter algorithm;
+                algorithm.SetApplyColor(false);
+                algorithm.SetRemoveCheckedPoints(true);
                 algorithm.RunAlgorithm(&pcd);
             }
+            TE(Cleaning);
+
+            //pcd.SaveToPLY("D:\\Debug\\3D\\points_26.ply");
 
             auto entity = app->CreateEntity("Cleaning");
             entity->FromPointCloud(&pcd);
@@ -690,6 +702,42 @@ int main(int argc, char** argv)
             entity->SetVisibility(false);
         }
 
+        /*
+        {
+            DevicePointCloud pcd;
+
+            pcd.LoadFromALP(resource_file_name_alp);
+
+            TS(Cleaning);
+            {
+                PointCloudAlgorithm_CheckOverlap algorithm;
+                algorithm.SetStep(7);
+                algorithm.SetRemoveCheckedPoints(true);
+                algorithm.RunAlgorithm(&pcd);
+            }
+            {
+                PointCloudAlgorithm_NormalSimilarity algorithm;
+                algorithm.SetRemoveCheckedPoints(true);
+
+                algorithm.RunAlgorithm(&pcd);
+            }
+            {
+                PointCloudAlgorithm_ClusteringFilter algorithm;
+                algorithm.SetApplyColor(false);
+                algorithm.SetMergeMode(1);
+                algorithm.SetRemoveCheckedPoints(true);
+                algorithm.RunAlgorithm(&pcd);
+            }
+            TE(Cleaning);
+
+            //pcd.SaveToPLY("D:\\Debug\\3D\\points_6.ply");
+
+            auto entity = app->CreateEntity("Cleaning 6");
+            entity->FromPointCloud(&pcd);
+
+            entity->SetVisibility(false);
+        }
+        */
         return;
         
         {
