@@ -20,3 +20,22 @@ public:
 private:
 	bool removeCheckedPoints = false;
 };
+
+class PointCloudAlgorithm_NormalSimilarity_UsingCount : public PointCloudAlgorithm
+{
+public:
+	PointCloudAlgorithm_NormalSimilarity_UsingCount();
+	virtual ~PointCloudAlgorithm_NormalSimilarity_UsingCount();
+
+	virtual void RunAlgorithm(DevicePointCloud* pointCloud);
+	virtual void RunAlgorithm(HostPointCloud* pointCloud);
+
+	virtual void IncreaseParameter() override;
+	virtual void DecreaseParameter() override;
+
+	inline bool GetRemoveCheckedPoints() { return removeCheckedPoints; }
+	inline void SetRemoveCheckedPoints(bool remove) { removeCheckedPoints = remove; }
+
+private:
+	bool removeCheckedPoints = false;
+};

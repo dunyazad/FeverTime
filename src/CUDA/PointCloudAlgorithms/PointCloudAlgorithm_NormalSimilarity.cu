@@ -340,7 +340,7 @@ PointCloudAlgorithm_NormalSimilarity::~PointCloudAlgorithm_NormalSimilarity()
 ////	cudaDeviceSynchronize();
 ////}
 
-__global__ void NormalSimilarity(HashMapInfo info, float3* positions, float3* normals, uchar4* colors, size_t numberOfPoints, bool removeCheckedPoints)
+__global__ void Kernel_NormalSimilarity(HashMapInfo info, float3* positions, float3* normals, uchar4* colors, size_t numberOfPoints, bool removeCheckedPoints)
 {
 	int idx = blockIdx.x * blockDim.x + threadIdx.x;
 	if (idx >= numberOfPoints) return;
@@ -405,6 +405,72 @@ __global__ void NormalSimilarity(HashMapInfo info, float3* positions, float3* no
 	}
 }
 
+__global__ void Kernel_NormalSimilarity_Using_Count(HashMapInfo info, float3* positions, float3* normals, uchar4* colors, size_t numberOfPoints, bool removeCheckedPoints)
+{
+	int idx = blockIdx.x * blockDim.x + threadIdx.x;
+	if (idx >= numberOfPoints) return;
+
+	auto& p = positions[idx];
+	auto& n = normals[idx];
+	int3 coord = make_int3(floorf(p.x / info.voxelSize), floorf(p.y / info.voxelSize), floorf(p.z / info.voxelSize));
+
+	auto slot = GetHashMapVoxelSlot(info, coord);
+	if (INVALID_VOXEL_SLOT == slot) return;
+
+	auto voxel = GetHashMapVoxel(info, slot);
+	if (INVALID_VOXEL == voxel) return;
+
+	float similaritySum = 0.f;
+	unsigned int count = 0;
+
+#pragma unroll
+	for (int ni = 0; ni < 26; ++ni)
+	{
+		int3 neighborCoord = make_int3(
+			coord.x + neighbor_offsets_26[ni].x,
+			coord.y + neighbor_offsets_26[ni].y,
+			coord.z + neighbor_offsets_26[ni].z);
+
+		size_t neighborSlot = GetHashMapVoxelSlot(info, neighborCoord);
+		if (INVALID_VOXEL_SLOT == slot) continue;
+
+		HashMapVoxel* neighborVoxel = GetHashMapVoxel(info, neighborSlot);
+		if (INVALID_VOXEL == neighborVoxel) continue;
+
+		float3 neighborCenter = make_float3(
+			((float)neighborCoord.x + 0.5f) * info.voxelSize,
+			((float)neighborCoord.y + 0.5f) * info.voxelSize,
+			((float)neighborCoord.z + 0.5f) * info.voxelSize
+		);
+
+		auto neighborNormal_ = (neighborVoxel->normal / (float)neighborVoxel->pointCount).normalized();
+		auto nn = make_float3(neighborNormal_.x(), neighborNormal_.y(), neighborNormal_.z());
+
+		float similarity = dot(n, nn);
+		if (similarity < 0.5f)
+		{
+			count++;
+		}
+	}
+
+	if (6 > count)
+	{
+		if (removeCheckedPoints)
+		{
+			positions[idx].x = FLT_MAX;
+			positions[idx].y = FLT_MAX;
+			positions[idx].z = FLT_MAX;
+		}
+		else
+		{
+			colors[idx].x = 255;
+			colors[idx].y = 0;
+			colors[idx].z = 0;
+			colors[idx].w = 255;
+		}
+	}
+}
+
 void PointCloudAlgorithm_NormalSimilarity::RunAlgorithm(DevicePointCloud* pointCloud)
 {
 	nvtxRangePushA("Laplacian");
@@ -421,7 +487,7 @@ void PointCloudAlgorithm_NormalSimilarity::RunAlgorithm(DevicePointCloud* pointC
 		auto normals = thrust::raw_pointer_cast(pointCloud->GetNormals().data());
 		auto colors = thrust::raw_pointer_cast(pointCloud->GetColors().data());
 
-		NormalSimilarity << <gridOccupied, blockSize >> > (
+		Kernel_NormalSimilarity << <gridOccupied, blockSize >> > (
 			pointCloud->GetHashMap().info, positions, normals, colors, numberOfPoints, removeCheckedPoints);
 
 		cudaDeviceSynchronize();
@@ -551,5 +617,126 @@ void PointCloudAlgorithm_NormalSimilarity::IncreaseParameter()
 }
 
 void PointCloudAlgorithm_NormalSimilarity::DecreaseParameter()
+{
+}
+
+
+
+
+
+PointCloudAlgorithm_NormalSimilarity_UsingCount::PointCloudAlgorithm_NormalSimilarity_UsingCount()
+{
+
+}
+
+PointCloudAlgorithm_NormalSimilarity_UsingCount::~PointCloudAlgorithm_NormalSimilarity_UsingCount()
+{
+
+}
+
+__global__ void Kernel_NormalSimilarity_UsingCount(HashMapInfo info, float3* positions, float3* normals, uchar4* colors, size_t numberOfPoints, bool removeCheckedPoints)
+{
+	int idx = blockIdx.x * blockDim.x + threadIdx.x;
+	if (idx >= numberOfPoints) return;
+
+	auto& p = positions[idx];
+	auto& n = normals[idx];
+	int3 coord = make_int3(floorf(p.x / info.voxelSize), floorf(p.y / info.voxelSize), floorf(p.z / info.voxelSize));
+
+	auto slot = GetHashMapVoxelSlot(info, coord);
+	if (INVALID_VOXEL_SLOT == slot) return;
+
+	auto voxel = GetHashMapVoxel(info, slot);
+	if (INVALID_VOXEL == voxel) return;
+
+	unsigned int count = 0;
+
+#pragma unroll
+	for (int ni = 0; ni < 26; ++ni)
+	{
+		int3 neighborCoord = make_int3(
+			coord.x + neighbor_offsets_26[ni].x,
+			coord.y + neighbor_offsets_26[ni].y,
+			coord.z + neighbor_offsets_26[ni].z);
+
+		size_t neighborSlot = GetHashMapVoxelSlot(info, neighborCoord);
+		if (INVALID_VOXEL_SLOT == slot) continue;
+
+		HashMapVoxel* neighborVoxel = GetHashMapVoxel(info, neighborSlot);
+		if (INVALID_VOXEL == neighborVoxel) continue;
+
+		float3 neighborCenter = make_float3(
+			((float)neighborCoord.x + 0.5f) * info.voxelSize,
+			((float)neighborCoord.y + 0.5f) * info.voxelSize,
+			((float)neighborCoord.z + 0.5f) * info.voxelSize
+		);
+
+		auto neighborNormal_ = (neighborVoxel->normal / (float)neighborVoxel->pointCount).normalized();
+		auto nn = make_float3(neighborNormal_.x(), neighborNormal_.y(), neighborNormal_.z());
+
+		float degree = acosf(dot(n, nn)) * 180 / M_PI;
+		if (degree > 60)
+		{
+			count++;
+		}
+	}
+
+	if (3 > count)
+	{
+		if (removeCheckedPoints)
+		{
+			positions[idx].x = FLT_MAX;
+			positions[idx].y = FLT_MAX;
+			positions[idx].z = FLT_MAX;
+		}
+		else
+		{
+			colors[idx].x = 255;
+			colors[idx].y = 0;
+			colors[idx].z = 0;
+			colors[idx].w = 255;
+		}
+	}
+}
+
+void PointCloudAlgorithm_NormalSimilarity_UsingCount::RunAlgorithm(DevicePointCloud* pointCloud)
+{
+	nvtxRangePushA("PointCloudAlgorithm_NormalSimilarity_UsingCount");
+
+	unsigned int numberOfOccupiedVoxels = pointCloud->GetHashMap().info.h_numberOfOccupiedVoxels;
+
+	{
+		unsigned int numberOfPoints = pointCloud->GetNumberOfElements();
+
+		unsigned int blockSize = 256;
+		unsigned int gridOccupied = (numberOfPoints + blockSize - 1) / blockSize;
+
+		auto positions = thrust::raw_pointer_cast(pointCloud->GetPositions().data());
+		auto normals = thrust::raw_pointer_cast(pointCloud->GetNormals().data());
+		auto colors = thrust::raw_pointer_cast(pointCloud->GetColors().data());
+
+		Kernel_NormalSimilarity_UsingCount << <gridOccupied, blockSize >> > (
+			pointCloud->GetHashMap().info, positions, normals, colors, numberOfPoints, removeCheckedPoints);
+
+		cudaDeviceSynchronize();
+
+		if (removeCheckedPoints)
+		{
+			pointCloud->Compact();
+		}
+	}
+
+	nvtxRangePop();
+}
+
+void PointCloudAlgorithm_NormalSimilarity_UsingCount::RunAlgorithm(HostPointCloud* pointCloud)
+{
+}
+
+void PointCloudAlgorithm_NormalSimilarity_UsingCount::IncreaseParameter()
+{
+}
+
+void PointCloudAlgorithm_NormalSimilarity_UsingCount::DecreaseParameter()
 {
 }

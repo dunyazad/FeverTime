@@ -634,7 +634,9 @@ int main(int argc, char** argv)
             pcd.LoadFromALP(resource_file_name_alp);
 
             {
-                PointCloudAlgorithm_ClusteringFilter algorithm;
+                PointCloudAlgorithm_NormalSimilarity_UsingCount algorithm;
+                algorithm.SetRemoveCheckedPoints(false);
+
                 algorithm.RunAlgorithm(&pcd);
             }
 
@@ -643,6 +645,8 @@ int main(int argc, char** argv)
 
             entity->SetVisibility(false);
         }
+
+        return;
 
         //{
         //    DevicePointCloud pcd;
@@ -681,7 +685,7 @@ int main(int argc, char** argv)
                 algorithm.RunAlgorithm(&pcd);
             }
             {
-                PointCloudAlgorithm_NormalSimilarity algorithm;
+                PointCloudAlgorithm_NormalSimilarity_UsingCount algorithm;
                 algorithm.SetRemoveCheckedPoints(true);
 
                 algorithm.RunAlgorithm(&pcd);
