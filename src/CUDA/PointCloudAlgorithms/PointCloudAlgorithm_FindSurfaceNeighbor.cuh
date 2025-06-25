@@ -14,5 +14,9 @@ public:
 	virtual void IncreaseParameter() override;
 	virtual void DecreaseParameter() override;
 
+	inline bool GetRemoveCheckedPoints() { return removeCheckedPoints; }
+	inline void SetRemoveCheckedPoints(bool remove) { removeCheckedPoints = remove; }
+
 private:
+	bool removeCheckedPoints = false;
 };

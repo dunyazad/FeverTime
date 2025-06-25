@@ -649,7 +649,8 @@ __global__ void Kernel_NormalSimilarity_UsingCount(HashMapInfo info, float3* pos
 	auto voxel = GetHashMapVoxel(info, slot);
 	if (INVALID_VOXEL == voxel) return;
 
-	unsigned int count = 0;
+	unsigned int neighborCount = 0;
+	unsigned int checkedCount = 0;
 
 #pragma unroll
 	for (int ni = 0; ni < 26; ++ni)
@@ -660,10 +661,12 @@ __global__ void Kernel_NormalSimilarity_UsingCount(HashMapInfo info, float3* pos
 			coord.z + neighbor_offsets_26[ni].z);
 
 		size_t neighborSlot = GetHashMapVoxelSlot(info, neighborCoord);
-		if (INVALID_VOXEL_SLOT == slot) continue;
+		if (INVALID_VOXEL_SLOT == neighborSlot) continue;
 
 		HashMapVoxel* neighborVoxel = GetHashMapVoxel(info, neighborSlot);
 		if (INVALID_VOXEL == neighborVoxel) continue;
+
+		neighborCount++;
 
 		float3 neighborCenter = make_float3(
 			((float)neighborCoord.x + 0.5f) * info.voxelSize,
@@ -675,13 +678,13 @@ __global__ void Kernel_NormalSimilarity_UsingCount(HashMapInfo info, float3* pos
 		auto nn = make_float3(neighborNormal_.x(), neighborNormal_.y(), neighborNormal_.z());
 
 		float degree = acosf(dot(n, nn)) * 180 / M_PI;
-		if (degree > 60)
+		if (degree > 20)
 		{
-			count++;
+			checkedCount++;
 		}
 	}
 
-	if (3 > count)
+	if (3 < checkedCount || 3 > neighborCount)
 	{
 		if (removeCheckedPoints)
 		{

@@ -203,6 +203,12 @@ void PointCloudAlgorithm_ClusteringFilter::RunAlgorithm(DevicePointCloud* pointC
 {
 	nvtxRangePushA("Clustering");
 
+	pointCloud->GetHashMap().Clear(pointCloud->GetHashMap().info.capacity);
+	auto d_positions = thrust::raw_pointer_cast(pointCloud->GetPositions().data());
+	auto d_normals = thrust::raw_pointer_cast(pointCloud->GetNormals().data());
+	auto d_colors = thrust::raw_pointer_cast(pointCloud->GetColors().data());
+	pointCloud->GetHashMap().InsertPoints(d_positions, d_normals, d_colors, pointCloud->GetNumberOfElements());
+
 	unsigned int numberOfOccupiedVoxels = pointCloud->GetHashMap().info.h_numberOfOccupiedVoxels;
 
 	{

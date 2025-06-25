@@ -340,7 +340,7 @@ PointCloudAlgorithm_FindSurfaceNeighbor::~PointCloudAlgorithm_FindSurfaceNeighbo
 ////	cudaDeviceSynchronize();
 ////}
 
-__global__ void Kernel_CheckNeighbor(HashMapInfo info, float3* positions, float3* normals, uchar4* colors, size_t numberOfPoints)
+__global__ void Kernel_CheckNeighbor(HashMapInfo info, float3* positions, float3* normals, uchar4* colors, size_t numberOfPoints, bool removeCheckedPoints)
 {
 	int idx = blockIdx.x * blockDim.x + threadIdx.x;
 	if (idx >= numberOfPoints) return;
@@ -364,7 +364,7 @@ __global__ void Kernel_CheckNeighbor(HashMapInfo info, float3* positions, float3
 			coord.z + neighbor_offsets_26[ni].z);
 
 		size_t neighborSlot = GetHashMapVoxelSlot(info, neighborCoord);
-		if (INVALID_VOXEL_SLOT == slot) continue;
+		if (INVALID_VOXEL_SLOT == neighborSlot) continue;
 
 		HashMapVoxel* neighborVoxel = GetHashMapVoxel(info, neighborSlot);
 		if (INVALID_VOXEL == neighborVoxel) continue;
@@ -397,7 +397,8 @@ __global__ void Kernel_CheckNeighbor(HashMapInfo info, float3* positions, float3
 		if (dp < COS_ANGLE_THRESHOLD)
 		{
 			colors[idx] = make_uchar4(255, 0, 0, 255);
-			positions[idx] = make_float3(FLT_MAX, FLT_MAX, FLT_MAX);
+			if(removeCheckedPoints)
+				positions[idx] = make_float3(FLT_MAX, FLT_MAX, FLT_MAX);
 			return;
 		}
 	}
@@ -410,7 +411,7 @@ __global__ void Kernel_CheckNeighbor(HashMapInfo info, float3* positions, float3
 
 void PointCloudAlgorithm_FindSurfaceNeighbor::RunAlgorithm(DevicePointCloud* pointCloud)
 {
-	nvtxRangePushA("Clustering");
+	nvtxRangePushA("FindSurfaceNeighbor");
 
 	unsigned int numberOfOccupiedVoxels = pointCloud->GetHashMap().info.h_numberOfOccupiedVoxels;
 
@@ -425,7 +426,7 @@ void PointCloudAlgorithm_FindSurfaceNeighbor::RunAlgorithm(DevicePointCloud* poi
 		auto colors = thrust::raw_pointer_cast(pointCloud->GetColors().data());
 
 		Kernel_CheckNeighbor << <gridOccupied, blockSize >> > (
-			pointCloud->GetHashMap().info, positions, normals, colors, numberOfPoints);
+			pointCloud->GetHashMap().info, positions, normals, colors, numberOfPoints, removeCheckedPoints);
 
 		cudaDeviceSynchronize();
 	}
